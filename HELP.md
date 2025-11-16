@@ -29,3 +29,29 @@ If you manually switch to a different parent and actually want the inheritance, 
 
 ### Useful commands
 curl -s http://localhost:8080/actuator | jq
+
+# Create a message (POST) — returns 201 with Location header and JSON body containing the UUID id
+curl -i -X POST http://localhost:8080/messages \
+-H "Content-Type: application/json" \
+-d '{"content":"Hello from curl"}'
+
+# Create and extract id from JSON response (requires jq)
+ID=$(curl -s -X POST http://localhost:8080/messages \
+-H "Content-Type: application/json" \
+-d '{"content":"Hello from curl"}' | jq -r '.id')
+echo "created id: $ID"
+
+# Alternatively extract Location header (no jq)
+LOCATION=$(curl -s -i -X POST http://localhost:8080/messages \
+-H "Content-Type: application/json" \
+-d '{"content":"Hello from curl"}' | awk '/^Location:/ {print $2}' | tr -d '\r')
+echo "location: $LOCATION"
+
+# Get a single message by id (replace <id> with the UUID from response)
+curl -i http://localhost:8080/messages/<id>
+
+# Example using the ID variable from above
+curl -i http://localhost:8080/messages/$ID
+
+# List all messages
+curl -i http://localhost:8080/messages
