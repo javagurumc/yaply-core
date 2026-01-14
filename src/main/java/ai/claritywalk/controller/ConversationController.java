@@ -26,20 +26,20 @@ public class ConversationController {
     }
 
     @PostMapping("/{id}/events")
-    public void ingest(@PathVariable UUID id, @RequestBody @Valid TranscriptBatchRequest req, Authentication auth) {
+    public void ingest(@PathVariable("id") UUID id, @RequestBody @Valid TranscriptBatchRequest req, Authentication auth) {
         // in prod: verify auth user is allowed to write to this conversation
         conversationService.appendEvents(req);
     }
 
     @PostMapping("/{id}/end")
-    public EndConversationResponse end(@PathVariable UUID id, Authentication auth) {
+    public EndConversationResponse end(@PathVariable("id") UUID id, Authentication auth) {
         // in prod: verify auth user owns conversation
         var summary = conversationService.endAndSummarize(id, (String) auth.getPrincipal());
         return new EndConversationResponse(id, summary);
     }
 
     @GetMapping("/{id}")
-    public Object get(@PathVariable UUID id) {
+    public Object get(@PathVariable("id") UUID id) {
         return conversationService.getConversationView(id);
     }
 }
