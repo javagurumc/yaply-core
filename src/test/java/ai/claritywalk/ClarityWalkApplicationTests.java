@@ -1,10 +1,10 @@
-package eu.companon.clarity_walk_core;
+package ai.claritywalk;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ClarityWalkCoreApplicationTests {
+class ClarityWalkApplicationTests {
 
 	@Test
 	void contextLoads() {
