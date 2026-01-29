@@ -8,6 +8,7 @@ import ai.claritywalk.repo.ConversationRepository;
 import ai.claritywalk.util.JsonUtil;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -15,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @AllArgsConstructor
 @Service
 public class ConversationService {
@@ -34,13 +36,15 @@ public class ConversationService {
     @Transactional
     public void appendEvents(TranscriptBatchRequest req) {
         for (var item : req.items()) {
-            eventRepo.save(ConversationEvent.of(
+            var event = ConversationEvent.of(
                     req.conversationId(),
                     item.ts(),
                     item.role(),
                     item.type(),
                     objectMapper.writeValueAsString(item.content())
-            ));
+            );
+            log.info(event.toString());
+            eventRepo.save(event);
         }
     }
 

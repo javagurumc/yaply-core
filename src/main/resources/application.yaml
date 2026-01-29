@@ -25,4 +25,4 @@ claritywalk:
         # Realtime session creation endpoint (server-to-server)
         realtimeSessionsUrl: https://api.openai.com/v1/realtime/sessions
         # Choose your model; keep configurable
-        model: gpt-4o-realtime-preview
+        model: gpt-realtime
