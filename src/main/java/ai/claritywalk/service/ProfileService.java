@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -18,19 +19,16 @@ import java.util.stream.Collectors;
 public class ProfileService {
 
     private final ProfileRepository profileRepository;
+    private final ObjectMapper objectMapper;
 
     public CreateProfileResponse createProfile(CreateProfileRequest request, Authentication auth) {
 
         var userId = auth.getPrincipal().toString();
-        var responses = request.responses().entrySet().stream()
-                .map(e -> e.getKey() + "=" + e.getValue())
-                .collect(Collectors.joining(","));;
-
         var profile = Profile.builder()
                 .id(UUID.randomUUID())
                 .userId(userId)
                 .email(request.email())
-                .responses(responses)
+                .responses(objectMapper.writeValueAsString(request.responses()))
                 .build();
 
         var createdProfile = profileRepository.save(profile);

@@ -3,6 +3,8 @@ package ai.claritywalk.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -31,8 +33,8 @@ public class ConversationEvent {
     @Column(name = "type", nullable = false)
     private String type; // text|transcript|tool_output|...
 
-    @Lob
-    @Column(name = "content", nullable = false)
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "content", nullable = false, columnDefinition = "jsonb")
     private String content;
 
     public static ConversationEvent of(UUID conversationId, Instant ts, String role, String type, String content) {

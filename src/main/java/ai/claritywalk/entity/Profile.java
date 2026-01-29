@@ -3,8 +3,9 @@ package ai.claritywalk.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
 
@@ -25,7 +26,8 @@ public class Profile {
     @Column(name = "email", nullable = false)
     private String email;
 
-    @Column(name = "responses", nullable = false)
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "responses", nullable = false, columnDefinition = "jsonb")
     private String responses;
 
 }

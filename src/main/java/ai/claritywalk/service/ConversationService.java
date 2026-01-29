@@ -9,6 +9,7 @@ import ai.claritywalk.util.JsonUtil;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,6 +22,7 @@ public class ConversationService {
     private final ConversationRepository conversationRepo;
     private final ConversationEventRepository eventRepo;
     private final SummarizationService summarizationService;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public UUID createConversation(String userId) {
@@ -37,7 +39,7 @@ public class ConversationService {
                     item.ts(),
                     item.role(),
                     item.type(),
-                    item.content()
+                    objectMapper.writeValueAsString(item.content())
             ));
         }
     }

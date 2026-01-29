@@ -3,6 +3,8 @@ package ai.claritywalk.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -29,12 +31,12 @@ public class Conversation {
     @Column(nullable = false)
     private String status; // STARTED, ENDED
 
-    @Lob
-    @Column(name = "session_config_json")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "session_config_json", columnDefinition = "jsonb")
     private String sessionConfigJson;
 
-    @Lob
-    @Column(name = "final_summary_json")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "final_summary_json", columnDefinition = "jsonb")
     private String finalSummaryJson;
 
     public static Conversation started(UUID id, String userId, String sessionConfigJson) {
