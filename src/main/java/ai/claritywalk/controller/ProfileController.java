@@ -2,13 +2,11 @@ package ai.claritywalk.controller;
 
 import ai.claritywalk.dto.CreateProfileRequest;
 import ai.claritywalk.dto.CreateProfileResponse;
+import ai.claritywalk.dto.ProfileResponse;
 import ai.claritywalk.service.ProfileService;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @AllArgsConstructor
 @RestController
@@ -16,6 +14,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProfileController {
 
     private final ProfileService profileService;
+
+    @GetMapping
+    public ProfileResponse getProfile(Authentication auth) {
+        return profileService.getProfile(auth);
+    }
 
     @PostMapping
     public CreateProfileResponse create(@RequestBody CreateProfileRequest request, Authentication auth) {
