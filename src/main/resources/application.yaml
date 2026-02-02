@@ -26,3 +26,8 @@ claritywalk:
         realtimeSessionsUrl: https://api.openai.com/v1/realtime/sessions
         # Choose your model; keep configurable
         model: gpt-realtime
+    jwt:
+        # Secret key for signing JWT tokens (should be set via environment variable in production)
+        secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-please-make-it-long-enough}
+        # Token expiration time in milliseconds (24 hours = 86400000)
+        expiration: 86400000

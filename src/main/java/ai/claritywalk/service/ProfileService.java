@@ -7,11 +7,9 @@ import ai.claritywalk.repo.ProfileRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
-
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Slf4j
@@ -22,17 +20,24 @@ public class ProfileService {
     private final ObjectMapper objectMapper;
 
     public CreateProfileResponse createProfile(CreateProfileRequest request, Authentication auth) {
+        // Get email from authenticated user (from JWT token)
+        String email = ((UserDetails) auth.getPrincipal()).getUsername();
 
-        var userId = auth.getPrincipal().toString();
-        var profile = Profile.builder()
-                .id(UUID.randomUUID())
-                .userId(userId)
-                .email(request.email())
-                .responses(objectMapper.writeValueAsString(request.responses()))
-                .build();
+        // Find existing profile by email (created during registration)
+        Profile profile = profileRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Profile not found for user: " + email));
 
-        var createdProfile = profileRepository.save(profile);
-        return new CreateProfileResponse(createdProfile.getId(), createdProfile.getUserId(), createdProfile.getEmail());
+        // Update profile with onboarding responses
+        String responsesJson = objectMapper.writeValueAsString(request.responses());
+        profile.setResponses(responsesJson);
+
+        // Save updated profile
+        Profile updatedProfile = profileRepository.save(profile);
+
+        return new CreateProfileResponse(
+                updatedProfile.getId(),
+                updatedProfile.getUserId(),
+                updatedProfile.getEmail());
     }
 
 }
