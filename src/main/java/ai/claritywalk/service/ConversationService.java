@@ -3,8 +3,10 @@ package ai.claritywalk.service;
 import ai.claritywalk.dto.TranscriptBatchRequest;
 import ai.claritywalk.entity.Conversation;
 import ai.claritywalk.entity.ConversationEvent;
+import ai.claritywalk.entity.Profile;
 import ai.claritywalk.repo.ConversationEventRepository;
 import ai.claritywalk.repo.ConversationRepository;
+import ai.claritywalk.repo.ProfileRepository;
 import ai.claritywalk.util.JsonUtil;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
@@ -25,11 +27,33 @@ public class ConversationService {
     private final ConversationEventRepository eventRepo;
     private final SummarizationService summarizationService;
     private final ObjectMapper objectMapper;
+    private final PromptService promptService;
+    private final ProfileRepository profileRepository;
 
     @Transactional
     public UUID createConversation(String userId) {
         UUID id = UUID.randomUUID();
-        conversationRepo.save(Conversation.started(id, userId, "{}"));
+
+        // Fetch user profile and generate customized prompt
+        Profile profile = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Profile not found for user: " + userId));
+
+        // Parse profile responses from JSON
+        Map<String, String> responsesMap = objectMapper.readValue(
+                profile.getResponses(),
+                objectMapper.getTypeFactory().constructMapType(Map.class, String.class, String.class));
+
+        // Generate customized system prompt
+        String systemPrompt = promptService.generateSystemPrompt(responsesMap);
+
+        // Create session config with the customized prompt
+        Map<String, String> sessionConfig = new LinkedHashMap<>();
+        sessionConfig.put("systemPrompt", systemPrompt);
+        String sessionConfigJson = objectMapper.writeValueAsString(sessionConfig);
+
+        conversationRepo.save(Conversation.started(id, userId, sessionConfigJson));
+        log.info("Created conversation {} with customized prompt for user {}", id, userId);
+
         return id;
     }
 
@@ -41,8 +65,7 @@ public class ConversationService {
                     item.ts(),
                     item.role(),
                     item.type(),
-                    objectMapper.writeValueAsString(item.content())
-            );
+                    objectMapper.writeValueAsString(item.content()));
             log.info(event.toString());
             eventRepo.save(event);
         }
@@ -76,8 +99,7 @@ public class ConversationService {
                 "ts", e.getTs(),
                 "role", e.getRole(),
                 "type", e.getType(),
-                "content", e.getContent()
-        )).toList());
+                "content", e.getContent())).toList());
         return view;
     }
 }
