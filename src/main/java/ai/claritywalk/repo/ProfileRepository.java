@@ -1,5 +1,6 @@
 package ai.claritywalk.repo;
 
+import ai.claritywalk.entity.AuthProvider;
 import ai.claritywalk.entity.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,4 +11,8 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     Optional<Profile> findByEmail(String email);
 
     Optional<Profile> findByUserId(String userId);
+
+    Optional<Profile> findByAuthProviderAndProviderUserId(AuthProvider authProvider, String providerUserId);
+
+    Optional<Profile> findByEmailAndAuthProvider(String email, AuthProvider authProvider);
 }

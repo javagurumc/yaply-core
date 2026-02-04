@@ -3,6 +3,7 @@ package ai.claritywalk.service;
 import ai.claritywalk.dto.LoginRequest;
 import ai.claritywalk.dto.LoginResponse;
 import ai.claritywalk.dto.RegisterRequest;
+import ai.claritywalk.entity.AuthProvider;
 import ai.claritywalk.entity.Profile;
 import ai.claritywalk.repo.ProfileRepository;
 import ai.claritywalk.security.JwtUtil;
@@ -39,6 +40,7 @@ public class AuthService {
                 .userId(profileId.toString())
                 .email(request.getEmail())
                 .responses(request.getResponses())
+                .authProvider(AuthProvider.EMAIL)
                 .build();
 
         profile.setPasswordHash(passwordEncoder.encode(request.getPassword()));

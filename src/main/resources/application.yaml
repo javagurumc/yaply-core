@@ -20,6 +20,9 @@ spring:
         format_sql: true
 
 claritywalk:
+    # Frontend URL for OAuth redirects
+    frontend:
+        url: ${FRONTEND_URL:http://localhost:5173}
     openai:
         apiKey: ${OPENAI_API_KEY:}
         # Realtime session creation endpoint (server-to-server)
@@ -31,3 +34,12 @@ claritywalk:
         secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-please-make-it-long-enough}
         # Token expiration time in milliseconds (24 hours = 86400000)
         expiration: 86400000
+    oauth2:
+        google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/auth/oauth2/callback/google}
+        facebook:
+            client-id: ${FACEBOOK_CLIENT_ID:}
+            client-secret: ${FACEBOOK_CLIENT_SECRET:}
+            redirect-uri: ${FACEBOOK_REDIRECT_URI:http://localhost:8080/api/auth/oauth2/callback/facebook}

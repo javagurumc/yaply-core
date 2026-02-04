@@ -36,4 +36,17 @@ public class Profile {
     @Column(name = "password_hash")
     private String passwordHash;
 
+    @Setter
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false)
+    private AuthProvider authProvider = AuthProvider.EMAIL;
+
+    @Setter
+    @Column(name = "provider_user_id")
+    private String providerUserId;
+
+    @Setter
+    @Column(name = "provider_email")
+    private String providerEmail;
+
 }
