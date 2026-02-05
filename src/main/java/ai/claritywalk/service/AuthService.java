@@ -5,10 +5,12 @@ import ai.claritywalk.dto.LoginResponse;
 import ai.claritywalk.dto.RegisterRequest;
 import ai.claritywalk.entity.AuthProvider;
 import ai.claritywalk.entity.Profile;
+import ai.claritywalk.event.UserCreatedEvent;
 import ai.claritywalk.repo.ProfileRepository;
 import ai.claritywalk.security.JwtUtil;
 import ai.claritywalk.validation.RegistrationValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
@@ -27,6 +29,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final RegistrationValidator registrationValidator;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public LoginResponse register(RegisterRequest request) {
@@ -46,6 +49,9 @@ public class AuthService {
         profile.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
         profileRepository.save(profile);
+
+        // Publish event to trigger welcome email
+        eventPublisher.publishEvent(new UserCreatedEvent(this, profile));
 
         // Generate JWT token
         String token = jwtUtil.generateToken(profile.getEmail(), profile.getUserId());

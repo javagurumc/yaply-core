@@ -27,13 +27,14 @@ public class ConversationController {
         String userId = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"))
                 .getUserId();
+
         UUID id = conversationService.createConversation(userId);
         return new CreateConversationResponse(id);
     }
 
     @PostMapping("/{id}/events")
     public void ingest(@PathVariable("id") UUID id, @RequestBody @Valid TranscriptBatchRequest req,
-            Authentication auth) {
+                       Authentication auth) {
         // in prod: verify auth user is allowed to write to this conversation
         conversationService.appendEvents(req);
     }
