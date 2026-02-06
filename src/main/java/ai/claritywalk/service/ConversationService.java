@@ -3,6 +3,7 @@ package ai.claritywalk.service;
 import ai.claritywalk.dto.TranscriptBatchRequest;
 import ai.claritywalk.entity.Conversation;
 import ai.claritywalk.entity.ConversationEvent;
+import ai.claritywalk.entity.KbScope;
 import ai.claritywalk.entity.Profile;
 import ai.claritywalk.repo.ConversationEventRepository;
 import ai.claritywalk.repo.ConversationRepository;
@@ -14,9 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @AllArgsConstructor
@@ -26,6 +25,7 @@ public class ConversationService {
     private final ConversationRepository conversationRepo;
     private final ConversationEventRepository eventRepo;
     private final SummarizationService summarizationService;
+    private final KbIngestService kbIngestService;
     private final ObjectMapper objectMapper;
     private final PromptService promptService;
     private final ProfileRepository profileRepository;
@@ -81,7 +81,83 @@ public class ConversationService {
 
         convo.end(JsonUtil.toJson(summary));
         conversationRepo.save(convo);
+
+        // Persist user memory to KB
+        persistUserMemory(userId, summary, conversationId);
+
         return summary;
+    }
+
+    /**
+     * Persist conversation summary as user memory in the knowledge base.
+     */
+    private void persistUserMemory(String userId, Map<String, Object> summary, UUID conversationId) {
+        try {
+            String memoryContent = buildMemoryContent(summary);
+            List<String> tags = extractTags(summary);
+
+            String title = "Walk on " + java.time.LocalDate.now().toString();
+
+            kbIngestService.ingestDocument(
+                    KbScope.USER,
+                    userId,
+                    "walk_summary",
+                    title,
+                    memoryContent,
+                    tags,
+                    1);
+
+            log.info("Persisted user memory for conversation {} to KB", conversationId);
+
+        } catch (Exception e) {
+            log.error("Failed to persist user memory for conversation {}", conversationId, e);
+            // Don't throw - memory persistence is not critical to conversation end
+        }
+    }
+
+    /**
+     * Build memory content from summary (summary + takeaways).
+     */
+    private String buildMemoryContent(Map<String, Object> summary) {
+        StringBuilder content = new StringBuilder();
+
+        // Add summary
+        if (summary.containsKey("summary")) {
+            content.append("Summary: ").append(summary.get("summary")).append("\n\n");
+        }
+
+        // Add takeaways
+        if (summary.containsKey("takeaways") && summary.get("takeaways") instanceof List) {
+            List<Map> takeaways = (List<Map>) summary.get("takeaways");
+            content.append("Key Takeaways:\n");
+            for (Map t : takeaways) {
+                content.append("- ").append(t.get("title"))
+                        .append(": ").append(t.get("detail")).append("\n");
+            }
+        }
+
+        return content.toString();
+    }
+
+    /**
+     * Extract tags from summary.
+     */
+    private List<String> extractTags(Map<String, Object> summary) {
+        List<String> tags = new ArrayList<>();
+        tags.add("walk");
+        tags.add("summary");
+
+        // Add tags from takeaways
+        if (summary.containsKey("takeaways") && summary.get("takeaways") instanceof List) {
+            List<Map> takeaways = (List<Map>) summary.get("takeaways");
+            for (Map t : takeaways) {
+                if (t.containsKey("tags") && t.get("tags") instanceof List) {
+                    tags.addAll((List<String>) t.get("tags"));
+                }
+            }
+        }
+
+        return tags;
     }
 
     public Map<String, Object> getConversationView(UUID conversationId) {

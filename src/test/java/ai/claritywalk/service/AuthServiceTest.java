@@ -29,208 +29,211 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    @Mock
-    private ProfileRepository profileRepository;
+        @Mock
+        private ProfileRepository profileRepository;
 
-    @Mock
-    private PasswordEncoder passwordEncoder;
+        @Mock
+        private PasswordEncoder passwordEncoder;
 
-    @Mock
-    private JwtUtil jwtUtil;
+        @Mock
+        private JwtUtil jwtUtil;
 
-    @Mock
-    private AuthenticationManager authenticationManager;
+        @Mock
+        private AuthenticationManager authenticationManager;
 
-    @Mock
-    private RegistrationValidator registrationValidator;
+        @Mock
+        private RegistrationValidator registrationValidator;
 
-    @InjectMocks
-    private AuthService authService;
+        @Mock
+        private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
-    private RegisterRequest registerRequest;
-    private LoginRequest loginRequest;
-    private Profile testProfile;
-    private static final String TEST_EMAIL = "test@example.com";
-    private static final String TEST_PASSWORD = "password123";
-    private static final String TEST_TOKEN = "jwt.token.here";
-    private static final String TEST_USER_ID = "test-user-id";
+        @InjectMocks
+        private AuthService authService;
 
-    @BeforeEach
-    void setUp() {
-        registerRequest = new RegisterRequest();
-        registerRequest.setEmail(TEST_EMAIL);
-        registerRequest.setPassword(TEST_PASSWORD);
-        registerRequest.setResponses("{}");
+        private RegisterRequest registerRequest;
+        private LoginRequest loginRequest;
+        private Profile testProfile;
+        private static final String TEST_EMAIL = "test@example.com";
+        private static final String TEST_PASSWORD = "password123";
+        private static final String TEST_TOKEN = "jwt.token.here";
+        private static final String TEST_USER_ID = "test-user-id";
 
-        loginRequest = new LoginRequest();
-        loginRequest.setEmail(TEST_EMAIL);
-        loginRequest.setPassword(TEST_PASSWORD);
+        @BeforeEach
+        void setUp() {
+                registerRequest = new RegisterRequest();
+                registerRequest.setEmail(TEST_EMAIL);
+                registerRequest.setPassword(TEST_PASSWORD);
+                registerRequest.setResponses("{}");
 
-        testProfile = Profile.builder()
-                .id(UUID.randomUUID())
-                .userId(TEST_USER_ID)
-                .email(TEST_EMAIL)
-                .responses("{}")
-                .build();
-        testProfile.setPasswordHash("hashed_password");
-    }
+                loginRequest = new LoginRequest();
+                loginRequest.setEmail(TEST_EMAIL);
+                loginRequest.setPassword(TEST_PASSWORD);
 
-    // ==================== Registration Tests ====================
+                testProfile = Profile.builder()
+                                .id(UUID.randomUUID())
+                                .userId(TEST_USER_ID)
+                                .email(TEST_EMAIL)
+                                .responses("{}")
+                                .build();
+                testProfile.setPasswordHash("hashed_password");
+        }
 
-    @Test
-    void register_Success_ReturnsLoginResponse() {
-        // Arrange
-        doNothing().when(registrationValidator).validate(registerRequest);
-        when(passwordEncoder.encode(TEST_PASSWORD)).thenReturn("hashed_password");
-        when(profileRepository.save(any(Profile.class))).thenReturn(testProfile);
-        when(jwtUtil.generateToken(anyString(), anyString())).thenReturn(TEST_TOKEN);
+        // ==================== Registration Tests ====================
 
-        // Act
-        LoginResponse response = authService.register(registerRequest);
+        @Test
+        void register_Success_ReturnsLoginResponse() {
+                // Arrange
+                doNothing().when(registrationValidator).validate(registerRequest);
+                when(passwordEncoder.encode(TEST_PASSWORD)).thenReturn("hashed_password");
+                when(profileRepository.save(any(Profile.class))).thenReturn(testProfile);
+                when(jwtUtil.generateToken(anyString(), anyString())).thenReturn(TEST_TOKEN);
 
-        // Assert
-        assertNotNull(response);
-        assertEquals(TEST_TOKEN, response.getToken());
-        assertEquals(TEST_EMAIL, response.getEmail());
-        assertNotNull(response.getUserId());
+                // Act
+                LoginResponse response = authService.register(registerRequest);
 
-        // Verify interactions
-        verify(registrationValidator, times(1)).validate(registerRequest);
-        verify(passwordEncoder, times(1)).encode(TEST_PASSWORD);
-        verify(profileRepository, times(1)).save(any(Profile.class));
-        verify(jwtUtil, times(1)).generateToken(anyString(), anyString());
-    }
+                // Assert
+                assertNotNull(response);
+                assertEquals(TEST_TOKEN, response.getToken());
+                assertEquals(TEST_EMAIL, response.getEmail());
+                assertNotNull(response.getUserId());
 
-    @Test
-    void register_DuplicateEmail_ThrowsIllegalArgumentException() {
-        // Arrange
-        doThrow(new IllegalArgumentException("Email already registered"))
-                .when(registrationValidator).validate(registerRequest);
+                // Verify interactions
+                verify(registrationValidator, times(1)).validate(registerRequest);
+                verify(passwordEncoder, times(1)).encode(TEST_PASSWORD);
+                verify(profileRepository, times(1)).save(any(Profile.class));
+                verify(jwtUtil, times(1)).generateToken(anyString(), anyString());
+        }
 
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> authService.register(registerRequest));
+        @Test
+        void register_DuplicateEmail_ThrowsIllegalArgumentException() {
+                // Arrange
+                doThrow(new IllegalArgumentException("Email already registered"))
+                                .when(registrationValidator).validate(registerRequest);
 
-        assertEquals("Email already registered", exception.getMessage());
+                // Act & Assert
+                IllegalArgumentException exception = assertThrows(
+                                IllegalArgumentException.class,
+                                () -> authService.register(registerRequest));
 
-        // Verify that no profile was saved
-        verify(registrationValidator, times(1)).validate(registerRequest);
-        verify(profileRepository, never()).save(any(Profile.class));
-        verify(jwtUtil, never()).generateToken(anyString(), anyString());
-    }
+                assertEquals("Email already registered", exception.getMessage());
 
-    @Test
-    void register_PasswordIsHashed() {
-        // Arrange
-        doNothing().when(registrationValidator).validate(registerRequest);
-        when(passwordEncoder.encode(TEST_PASSWORD)).thenReturn("hashed_password");
-        when(profileRepository.save(any(Profile.class))).thenReturn(testProfile);
-        when(jwtUtil.generateToken(anyString(), anyString())).thenReturn(TEST_TOKEN);
+                // Verify that no profile was saved
+                verify(registrationValidator, times(1)).validate(registerRequest);
+                verify(profileRepository, never()).save(any(Profile.class));
+                verify(jwtUtil, never()).generateToken(anyString(), anyString());
+        }
 
-        // Act
-        authService.register(registerRequest);
+        @Test
+        void register_PasswordIsHashed() {
+                // Arrange
+                doNothing().when(registrationValidator).validate(registerRequest);
+                when(passwordEncoder.encode(TEST_PASSWORD)).thenReturn("hashed_password");
+                when(profileRepository.save(any(Profile.class))).thenReturn(testProfile);
+                when(jwtUtil.generateToken(anyString(), anyString())).thenReturn(TEST_TOKEN);
 
-        // Assert - verify password was encoded
-        verify(passwordEncoder, times(1)).encode(TEST_PASSWORD);
-        verify(profileRepository, times(1)).save(argThat(profile -> profile.getPasswordHash() != null &&
-                !profile.getPasswordHash().equals(TEST_PASSWORD)));
-    }
+                // Act
+                authService.register(registerRequest);
 
-    // ==================== Login Tests ====================
+                // Assert - verify password was encoded
+                verify(passwordEncoder, times(1)).encode(TEST_PASSWORD);
+                verify(profileRepository, times(1)).save(argThat(profile -> profile.getPasswordHash() != null &&
+                                !profile.getPasswordHash().equals(TEST_PASSWORD)));
+        }
 
-    @Test
-    void login_ValidCredentials_ReturnsLoginResponse() {
-        // Arrange
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(null); // Authentication successful
-        when(profileRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(testProfile));
-        when(jwtUtil.generateToken(TEST_EMAIL, TEST_USER_ID)).thenReturn(TEST_TOKEN);
+        // ==================== Login Tests ====================
 
-        // Act
-        LoginResponse response = authService.login(loginRequest);
+        @Test
+        void login_ValidCredentials_ReturnsLoginResponse() {
+                // Arrange
+                when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                                .thenReturn(null); // Authentication successful
+                when(profileRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(testProfile));
+                when(jwtUtil.generateToken(TEST_EMAIL, TEST_USER_ID)).thenReturn(TEST_TOKEN);
 
-        // Assert
-        assertNotNull(response);
-        assertEquals(TEST_TOKEN, response.getToken());
-        assertEquals(TEST_EMAIL, response.getEmail());
-        assertEquals(TEST_USER_ID, response.getUserId());
+                // Act
+                LoginResponse response = authService.login(loginRequest);
 
-        // Verify interactions
-        verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(profileRepository, times(1)).findByEmail(TEST_EMAIL);
-        verify(jwtUtil, times(1)).generateToken(TEST_EMAIL, TEST_USER_ID);
-    }
+                // Assert
+                assertNotNull(response);
+                assertEquals(TEST_TOKEN, response.getToken());
+                assertEquals(TEST_EMAIL, response.getEmail());
+                assertEquals(TEST_USER_ID, response.getUserId());
 
-    @Test
-    void login_InvalidCredentials_ThrowsIllegalArgumentException() {
-        // Arrange
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new BadCredentialsException("Bad credentials"));
+                // Verify interactions
+                verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
+                verify(profileRepository, times(1)).findByEmail(TEST_EMAIL);
+                verify(jwtUtil, times(1)).generateToken(TEST_EMAIL, TEST_USER_ID);
+        }
 
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> authService.login(loginRequest));
+        @Test
+        void login_InvalidCredentials_ThrowsIllegalArgumentException() {
+                // Arrange
+                when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                                .thenThrow(new BadCredentialsException("Bad credentials"));
 
-        assertEquals("Invalid email or password", exception.getMessage());
+                // Act & Assert
+                IllegalArgumentException exception = assertThrows(
+                                IllegalArgumentException.class,
+                                () -> authService.login(loginRequest));
 
-        // Verify that profile lookup and token generation were not called
-        verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(profileRepository, never()).findByEmail(anyString());
-        verify(jwtUtil, never()).generateToken(anyString(), anyString());
-    }
+                assertEquals("Invalid email or password", exception.getMessage());
 
-    @Test
-    void login_UserNotFoundAfterAuthentication_ThrowsIllegalArgumentException() {
-        // Arrange
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(null); // Authentication successful
-        when(profileRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.empty());
+                // Verify that profile lookup and token generation were not called
+                verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
+                verify(profileRepository, never()).findByEmail(anyString());
+                verify(jwtUtil, never()).generateToken(anyString(), anyString());
+        }
 
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> authService.login(loginRequest));
+        @Test
+        void login_UserNotFoundAfterAuthentication_ThrowsIllegalArgumentException() {
+                // Arrange
+                when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                                .thenReturn(null); // Authentication successful
+                when(profileRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.empty());
 
-        assertEquals("User not found", exception.getMessage());
+                // Act & Assert
+                IllegalArgumentException exception = assertThrows(
+                                IllegalArgumentException.class,
+                                () -> authService.login(loginRequest));
 
-        // Verify interactions
-        verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(profileRepository, times(1)).findByEmail(TEST_EMAIL);
-        verify(jwtUtil, never()).generateToken(anyString(), anyString());
-    }
+                assertEquals("User not found", exception.getMessage());
 
-    @Test
-    void login_AuthenticationTokenContainsCorrectCredentials() {
-        // Arrange
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(null);
-        when(profileRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(testProfile));
-        when(jwtUtil.generateToken(anyString(), anyString())).thenReturn(TEST_TOKEN);
+                // Verify interactions
+                verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
+                verify(profileRepository, times(1)).findByEmail(TEST_EMAIL);
+                verify(jwtUtil, never()).generateToken(anyString(), anyString());
+        }
 
-        // Act
-        authService.login(loginRequest);
+        @Test
+        void login_AuthenticationTokenContainsCorrectCredentials() {
+                // Arrange
+                when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                                .thenReturn(null);
+                when(profileRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(testProfile));
+                when(jwtUtil.generateToken(anyString(), anyString())).thenReturn(TEST_TOKEN);
 
-        // Assert - verify authentication was called with correct credentials
-        verify(authenticationManager, times(1)).authenticate(
-                argThat(token -> token instanceof UsernamePasswordAuthenticationToken &&
-                        token.getPrincipal().equals(TEST_EMAIL) &&
-                        token.getCredentials().equals(TEST_PASSWORD)));
-    }
+                // Act
+                authService.login(loginRequest);
 
-    @Test
-    void login_GeneratesTokenWithCorrectParameters() {
-        // Arrange
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(null);
-        when(profileRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(testProfile));
-        when(jwtUtil.generateToken(TEST_EMAIL, TEST_USER_ID)).thenReturn(TEST_TOKEN);
+                // Assert - verify authentication was called with correct credentials
+                verify(authenticationManager, times(1)).authenticate(
+                                argThat(token -> token instanceof UsernamePasswordAuthenticationToken &&
+                                                token.getPrincipal().equals(TEST_EMAIL) &&
+                                                token.getCredentials().equals(TEST_PASSWORD)));
+        }
 
-        // Act
-        authService.login(loginRequest);
+        @Test
+        void login_GeneratesTokenWithCorrectParameters() {
+                // Arrange
+                when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                                .thenReturn(null);
+                when(profileRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(testProfile));
+                when(jwtUtil.generateToken(TEST_EMAIL, TEST_USER_ID)).thenReturn(TEST_TOKEN);
 
-        // Assert - verify token generation with correct email and userId
-        verify(jwtUtil, times(1)).generateToken(TEST_EMAIL, TEST_USER_ID);
-    }
+                // Act
+                authService.login(loginRequest);
+
+                // Assert - verify token generation with correct email and userId
+                verify(jwtUtil, times(1)).generateToken(TEST_EMAIL, TEST_USER_ID);
+        }
 }
