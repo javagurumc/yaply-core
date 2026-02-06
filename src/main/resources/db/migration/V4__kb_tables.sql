@@ -52,10 +52,13 @@ CREATE TABLE IF NOT EXISTS kb_chunk (
 CREATE INDEX IF NOT EXISTS idx_kb_chunk_doc
     ON kb_chunk(document_id);
 
--- HNSW index for fast approximate nearest neighbor search using cosine similarity
--- This is the key index for vector similarity search
-CREATE INDEX IF NOT EXISTS idx_kb_chunk_embedding_hnsw
-    ON kb_chunk USING hnsw (embedding vector_cosine_ops);
+-- Index for vector similarity search
+-- NOTE: HNSW and IVFFlat have a 2000 dimension limit in standard pgvector builds.
+-- Our embedding dimension is 3072. We skip index creation for now to allow inserts.
+-- Exact nearest neighbor search (without index) will still work but be slower.
+-- For production, a custom build of pgvector with -DMAX_VECTOR_DIM=4096 is required.
+-- CREATE INDEX IF NOT EXISTS idx_kb_chunk_embedding_ivfflat
+--    ON kb_chunk USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- GIN index for full-text search on chunk text (optional but useful)
 CREATE INDEX IF NOT EXISTS idx_kb_chunk_text_gin

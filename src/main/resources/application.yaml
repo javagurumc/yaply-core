@@ -5,7 +5,7 @@ spring:
     application:
         name: clarity-walk-core
     datasource:
-        url: jdbc:postgresql://localhost:5432/claritywalk
+        url: jdbc:postgresql://localhost:5433/claritywalk
         username: clarity
         password: clarity
     flyway:
@@ -62,3 +62,17 @@ claritywalk:
     email:
         enabled: ${EMAIL_ENABLED:true}
         from: ${EMAIL_FROM:noreply@claritywalk.ai}
+    
+    # Knowledge Base (RAG) Configuration
+    kb:
+        embedding:
+            model: ${KB_EMBEDDING_MODEL:text-embedding-3-large}
+            dimension: ${KB_EMBEDDING_DIMENSION:3072}
+            batch-size: ${KB_EMBEDDING_BATCH_SIZE:100}
+        chunking:
+            max-chunk-size: ${KB_MAX_CHUNK_SIZE:800}      # tokens per chunk
+            overlap-size: ${KB_OVERLAP_SIZE:100}           # overlap tokens
+        retrieval:
+            default-top-k: ${KB_DEFAULT_TOP_K:5}           # default results
+            max-top-k: ${KB_MAX_TOP_K:20}                  # max allowed
+            max-returned-tokens: ${KB_MAX_TOKENS:2000}     # cap total tokens
