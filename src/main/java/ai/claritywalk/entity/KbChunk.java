@@ -40,6 +40,7 @@ public class KbChunk {
      * Dimension: 3072 (OpenAI text-embedding-3-large)
      */
     @Column(nullable = false, columnDefinition = "vector(3072)")
+    @org.hibernate.annotations.ColumnTransformer(write = "?::vector")
     private String embedding;
 
     @Column(name = "created_at", nullable = false)

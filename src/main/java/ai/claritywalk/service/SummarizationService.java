@@ -101,15 +101,29 @@ public class SummarizationService {
                         String content = root.path("choices").path(0).path("message").path("content").asText();
 
                         // Parse the content string as JSON
-                        return objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
-                        });
+                        return objectMapper.readValue(content, new TypeReference<>() {});
 
                 } catch (Exception e) {
-                        log.error("Failed to generate summary via LLM", e);
-                        // Fallback to basic details if LLM fails
+                        log.warn("Failed to generate summary via LLM: {}", e.getMessage());
+
+                        // Rule-based fallback
+                        List<String> userLines = events.stream()
+                                        .filter(evt -> "user".equals(evt.getRole()) && "text".equals(evt.getType()))
+                                        .map(ConversationEvent::getContent)
+                                        .toList();
+
+                        String shortSummary = userLines.isEmpty()
+                                        ? "No user text captured."
+                                        : "User discussed: " + String.join(" | ",
+                                                        userLines.subList(0, Math.min(3, userLines.size())));
+
                         return Map.of(
-                                        "summary", "Automatic summarization unavailable.",
-                                        "error", e.getMessage());
+                                        "summary", shortSummary,
+                                        "takeaways", List.of(
+                                                        Map.of("title", "Session Note",
+                                                                        "detail",
+                                                                        "Automated summary unavailable due to high load. Review transcript for details.",
+                                                                        "tags", List.of("fallback"))));
                 }
         }
 }
