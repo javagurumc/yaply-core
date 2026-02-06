@@ -69,9 +69,12 @@ claritywalk:
             model: ${KB_EMBEDDING_MODEL:text-embedding-3-large}
             dimension: ${KB_EMBEDDING_DIMENSION:3072}
             batch-size: ${KB_EMBEDDING_BATCH_SIZE:100}
+        batch-size: 100              # Max texts per batch
         chunking:
-            max-chunk-size: ${KB_MAX_CHUNK_SIZE:800}      # tokens per chunk
-            overlap-size: ${KB_OVERLAP_SIZE:100}           # overlap tokens
+            max-chunk-size: 800          # tokens per chunk
+            overlap-size: 100            # overlap tokens
+        summarization:
+            model: gpt-4o                 # Model for summarization
         retrieval:
             default-top-k: ${KB_DEFAULT_TOP_K:5}           # default results
             max-top-k: ${KB_MAX_TOP_K:20}                  # max allowed

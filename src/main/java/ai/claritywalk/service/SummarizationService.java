@@ -1,37 +1,115 @@
 package ai.claritywalk.service;
 
+import ai.claritywalk.config.KbConfig;
 import ai.claritywalk.entity.Conversation;
 import ai.claritywalk.entity.ConversationEvent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class SummarizationService {
 
-    public Map<String, Object> summarize(Conversation convo, List<ConversationEvent> events) {
-        // MVP stub: later replace with LLM call that returns strict JSON
-        // You can pass: rolling summary + last N turns, etc.
+        private final KbConfig kbConfig;
+        private final ObjectMapper objectMapper;
+        private final RestTemplate restTemplate = new RestTemplate();
 
-        List<String> userLines = events.stream()
-                .filter(e -> "user".equals(e.getRole()) && "text".equals(e.getType()))
-                .map(ConversationEvent::getContent)
-                .toList();
+        @Value("${claritywalk.openai.apiKey}")
+        private String openaiApiKey;
 
-        String shortSummary = userLines.isEmpty()
-                ? "No user text captured."
-                : "User discussed: " + String.join(" | ", userLines.subList(0, Math.min(3, userLines.size())));
+        private static final String CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 
-        return new LinkedHashMap<>(Map.of(
-                "summary", shortSummary,
-                "takeaways", List.of(
-                        Map.of("title", "Main topic", "detail", "Captured from user messages", "category", "insight", "confidence", 0.6),
-                        Map.of("title", "Next step", "detail", "Suggest a small walk action", "category", "action", "confidence", 0.5),
-                        Map.of("title", "Support", "detail", "Maintain a calm pace", "category", "action", "confidence", 0.5)
-                )
-        ));
-    }
+        public Map<String, Object> summarize(Conversation convo, List<ConversationEvent> events) {
+                if (events.isEmpty()) {
+                        return Map.of("summary", "No conversation events to summarize.");
+                }
 
+                // Format conversation for the prompt
+                StringBuilder transcript = new StringBuilder();
+                for (ConversationEvent event : events) {
+                        // Only include user and assistant messages for summary
+                        if ("text".equals(event.getType()) || "audio_transcript".equals(event.getType())) {
+                                transcript.append(event.getRole().toUpperCase())
+                                                .append(": ")
+                                                .append(event.getContent())
+                                                .append("\n");
+                        }
+                }
+
+                if (transcript.isEmpty()) {
+                        return Map.of("summary", "No dialogue content found.");
+                }
+
+                String systemPrompt = """
+                                You are an expert conversation summarizer for a coaching AI.
+                                Analyze the following conversation transcript.
+
+                                Produce a JSON output with the following structure:
+                                {
+                                   "summary": "Concise paragraph summarizing the session (3-5 sentences).",
+                                   "takeaways": [
+                                      {
+                                        "title": "Short title (e.g. 'Goal set')",
+                                        "detail": "Description of the insight or action item",
+                                        "tags": ["tag1", "tag2"]
+                                      }
+                                   ]
+                                }
+
+                                Focus on user goals, key insights, and action items.
+                                Exclude technical details or small talk unless relevant to the user's progress.
+                                """;
+
+                try {
+                        Map<String, Object> requestBody = Map.of(
+                                        "model", kbConfig.getSummarization().getModel(),
+                                        "messages", List.of(
+                                                        Map.of("role", "system", "content", systemPrompt),
+                                                        Map.of("role", "user", "content", transcript.toString())),
+                                        "response_format", Map.of("type", "json_object"));
+
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_JSON);
+                        headers.setBearerAuth(openaiApiKey);
+
+                        HttpEntity<String> request = new HttpEntity<>(
+                                        objectMapper.writeValueAsString(requestBody),
+                                        headers);
+
+                        ResponseEntity<String> response = restTemplate.exchange(
+                                        CHAT_COMPLETIONS_URL,
+                                        HttpMethod.POST,
+                                        request,
+                                        String.class);
+
+                        if (response.getStatusCode() != HttpStatus.OK) {
+                                throw new RuntimeException("OpenAI API error: " + response.getStatusCode());
+                        }
+
+                        JsonNode root = objectMapper.readTree(response.getBody());
+                        String content = root.path("choices").path(0).path("message").path("content").asText();
+
+                        // Parse the content string as JSON
+                        return objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
+                        });
+
+                } catch (Exception e) {
+                        log.error("Failed to generate summary via LLM", e);
+                        // Fallback to basic details if LLM fails
+                        return Map.of(
+                                        "summary", "Automatic summarization unavailable.",
+                                        "error", e.getMessage());
+                }
+        }
 }

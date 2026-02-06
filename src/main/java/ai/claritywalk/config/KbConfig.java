@@ -41,4 +41,12 @@ public class KbConfig {
         private int maxTopK = 20;
         private int maxReturnedTokens = 2000;
     }
+
+    @Getter
+    @Setter
+    public static class Summarization {
+        private String model = "gpt-4o";
+    }
+
+    private Summarization summarization = new Summarization();
 }
