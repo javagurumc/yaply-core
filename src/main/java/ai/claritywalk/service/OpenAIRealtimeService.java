@@ -2,6 +2,7 @@ package ai.claritywalk.service;
 
 import ai.claritywalk.dto.CreateRealtimeSessionRequest;
 import ai.claritywalk.dto.CreateRealtimeSessionResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import java.time.Instant;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class OpenAIRealtimeService {
 
     @Value("${claritywalk.openai.apiKey}")
@@ -22,7 +24,9 @@ public class OpenAIRealtimeService {
     @Value("${claritywalk.openai.model}")
     private String model;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
+    private final ConversationService conversationService;
 
     public CreateRealtimeSessionResponse createEphemeralSession(CreateRealtimeSessionRequest req, String userId) {
         if (apiKey == null || apiKey.isBlank()) {
@@ -32,12 +36,14 @@ public class OpenAIRealtimeService {
         // Endpoint must be /v1/realtime/client_secrets
         String url = "https://api.openai.com/v1/realtime/client_secrets";
 
+        String instructions = conversationService.getSystemPrompt(req.conversationId(), userId);
+
         // Body shape must be { expires_after?, session: {...} }
         Map<String, Object> body = Map.of(
                 "session", Map.of(
                         "type", "realtime",
                         "model", "gpt-realtime",
-                        "instructions", "You are Ricky Jarvis a coach for confused entrepreneurs. Ask one question at a time, reflect and keep responses short.",
+                        "instructions", instructions,
                         "audio", Map.of(
                                 "output", Map.of("voice", req.voice())
                         )

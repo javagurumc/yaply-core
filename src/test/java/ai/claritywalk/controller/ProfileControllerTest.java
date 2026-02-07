@@ -4,6 +4,7 @@ import ai.claritywalk.dto.CreateProfileResponse;
 import ai.claritywalk.dto.ProfileResponse;
 import ai.claritywalk.service.ProfileService;
 import ai.claritywalk.testsupport.ClarityWebMvcTest;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,35 +35,39 @@ class ProfileControllerTest {
 
     @Test
     void getProfile_returnsProfileResponse() {
-        var user = User.withUsername("user@example.com").password("pw").roles("USER").build();
-        var basic = "Basic " + Base64.getEncoder().encodeToString((user.getUsername() + ":pw")
-                .getBytes(StandardCharsets.UTF_8));
+        var email = "user@example.com";
+        var basicAuth = getBasicAuth(email);
 
         var createdAt = Instant.parse("2024-01-01T00:00:00Z");
         when(profileService.getProfile(any())).thenReturn(new ProfileResponse(
-                "user@example.com",
+                email,
                 Map.of("struggle", "focus"),
                 createdAt
         ));
 
         restTestClient.get().uri("/api/profile")
-                .header(HttpHeaders.AUTHORIZATION, basic)
+                .header(HttpHeaders.AUTHORIZATION, basicAuth)
                 .exchange()
                 .expectStatus().isOk()
                 .expectHeader().contentTypeCompatibleWith(MediaType.APPLICATION_JSON)
                 .expectBody()
-                .jsonPath("$.email").isEqualTo("user@example.com")
+                .jsonPath("$.email").isEqualTo(email)
                 .jsonPath("$.responses.struggle").isEqualTo("focus")
                 .jsonPath("$.createdAt").isEqualTo("2024-01-01T00:00:00Z");
 
+        //todo: add actual argument matching to verify the principal passed to profileService.getProfile has the expected email
         verify(profileService).getProfile(any());
+
+    }
+
+    private @NonNull String getBasicAuth(String username) {
+        return "Basic " + Base64.getEncoder().encodeToString((username + ":pw").getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
     void create_updatesProfileAndReturnsIds() {
         var user = User.withUsername("user@example.com").password("pw").roles("USER").build();
-        var basic = "Basic " + Base64.getEncoder().encodeToString((user.getUsername() + ":pw")
-                .getBytes(StandardCharsets.UTF_8));
+        var basic = getBasicAuth(user.getUsername());
 
         var id = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         when(profileService.createProfile(any(), any())).thenReturn(new CreateProfileResponse(

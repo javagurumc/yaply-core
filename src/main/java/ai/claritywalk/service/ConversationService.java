@@ -57,6 +57,32 @@ public class ConversationService {
         return id;
     }
 
+    public String getSystemPrompt(UUID conversationId, String userId) {
+        Conversation convo = conversationRepo.findById(conversationId)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+
+        if (!Objects.equals(convo.getUserId(), userId)) {
+            throw new IllegalArgumentException("Conversation does not belong to user");
+        }
+
+        String sessionConfigJson = convo.getSessionConfigJson();
+        if (sessionConfigJson == null || sessionConfigJson.isBlank()) {
+            throw new IllegalStateException("Conversation session config is missing");
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sessionConfig = objectMapper.readValue(
+                sessionConfigJson,
+                objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class));
+
+        Object systemPrompt = sessionConfig.get("systemPrompt");
+        if (systemPrompt instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
+        throw new IllegalStateException("Conversation system prompt is missing");
+    }
+
     @Transactional
     public void appendEvents(TranscriptBatchRequest req) {
         for (var item : req.items()) {
