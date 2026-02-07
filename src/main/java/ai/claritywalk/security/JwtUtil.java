@@ -22,16 +22,8 @@ public class JwtUtil {
     @Value("${claritywalk.jwt.expiration}")
     private Long expiration;
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    }
-
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
-    }
-
-    public String extractUserId(String token) {
-        return extractClaim(token, claims -> claims.get("userId", String.class));
     }
 
     public Date extractExpiration(String token) {
@@ -41,6 +33,10 @@ public class JwtUtil {
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
+    }
+
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     private Claims extractAllClaims(String token) {
