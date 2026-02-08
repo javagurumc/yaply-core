@@ -32,7 +32,7 @@ class ProfileControllerTest {
 
   @WithMockUser(username = "user@example.com")
   @Test
-  void getProfile_returnsProfileResponse() {
+  void givenAuthenticatedUser_whenGetProfile_thenReturnsProfileResponse() {
     var email = "user@example.com";
 
     var createdAt = Instant.parse("2024-01-01T00:00:00Z");
@@ -57,7 +57,7 @@ class ProfileControllerTest {
 
   @Test
   @WithMockUser(username = "user@example.com")
-  void create_updatesProfileAndReturnsIds() {
+  void givenAuthenticatedUserAndResponses_whenCreateProfile_thenReturnsCreatedProfileIds() {
     var id = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     when(profileService.createProfile(any(), any())).thenReturn(new CreateProfileResponse(
         id,
