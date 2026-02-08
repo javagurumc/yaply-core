@@ -1,6 +1,7 @@
 package ai.claritywalk.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -37,6 +38,7 @@ public class Profile {
     private String passwordHash;
 
     @Setter
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_provider", nullable = false)
     private AuthProvider authProvider = AuthProvider.EMAIL;
