@@ -23,6 +23,7 @@ public class ConversationController {
 
     @PostMapping
     public CreateConversationResponse create(Authentication auth) {
+        //Todo move this check to the service
         String email = ((UserDetails) auth.getPrincipal()).getUsername();
         String userId = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"))
@@ -42,6 +43,7 @@ public class ConversationController {
     @PostMapping("/{id}/end")
     public EndConversationResponse end(@PathVariable("id") UUID id, Authentication auth) {
         // in prod: verify auth user owns conversation
+        //Todo move this check to the service
         String email = ((UserDetails) auth.getPrincipal()).getUsername();
         String userId = profileRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"))
