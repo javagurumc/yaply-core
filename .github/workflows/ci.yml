@@ -201,6 +201,9 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             docker compose pull clarity-app
 
+            # Remove stale container if it exists but isn't managed by compose
+            docker rm -f clarity-walk-core 2>/dev/null || true
+
             # Restart only the app (leave DB running)
             docker compose up -d --no-deps clarity-app
 
