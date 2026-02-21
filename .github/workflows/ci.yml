@@ -166,14 +166,15 @@ jobs:
           script: |
             set -euo pipefail
 
-            IMAGE="ghcr.io/companon/clarity-walk-core:latest"
-
             APP_DIR="$HOME/clarity-walk"
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
 
             # Write env file (overwrite each deploy)
             cat > .env <<EOF
+            DB_NAME=${DB_NAME}
+            DB_USER=${DB_USER}
+            DB_PASSWORD=${DB_PASSWORD}
             EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
             EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
             EMAIL_SMTP_USERNAME=${EMAIL_SMTP_USERNAME}
@@ -186,41 +187,74 @@ jobs:
             OPENAI_API_KEY=${OPENAI_API_KEY}
             JWT_SECRET=${JWT_SECRET}
             FRONTEND_URL=${FRONTEND_URL}
-            DB_NAME=${DB_NAME}
-            DB_USER=${DB_USER}
-            DB_PASSWORD=${DB_PASSWORD}
             EOF
             chmod 600 .env
 
+            # Write docker-compose.yaml inline (single-quoted heredoc = no shell expansion)
+            cat > docker-compose.yaml <<'COMPOSE'
+            services:
+              clarity-db:
+                image: pgvector/pgvector:pg16
+                container_name: clarity-walk-db
+                restart: unless-stopped
+                environment:
+                  POSTGRES_DB: ${DB_NAME:-claritywalk}
+                  POSTGRES_USER: ${DB_USER:-clarity}
+                  POSTGRES_PASSWORD: ${DB_PASSWORD:-clarity}
+                volumes:
+                  - postgres_data:/var/lib/postgresql/data
+                networks:
+                  - clarity-network
+                healthcheck:
+                  test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-clarity} -d ${DB_NAME:-claritywalk}"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 10
+
+              clarity-app:
+                image: ghcr.io/companon/clarity-walk-core:latest
+                container_name: clarity-walk-core
+                restart: unless-stopped
+                ports:
+                  - "8080:8080"
+                environment:
+                  SPRING_DATASOURCE_URL: jdbc:postgresql://clarity-walk-db:5432/${DB_NAME:-claritywalk}
+                  SPRING_DATASOURCE_USERNAME: ${DB_USER:-clarity}
+                  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-clarity}
+                  EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST}
+                  EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT}
+                  EMAIL_SMTP_USERNAME: ${EMAIL_SMTP_USERNAME}
+                  EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD}
+                  EMAIL_FROM: ${EMAIL_FROM}
+                  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+                  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+                  FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID}
+                  FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET}
+                  OPENAI_API_KEY: ${OPENAI_API_KEY}
+                  JWT_SECRET: ${JWT_SECRET}
+                  FRONTEND_URL: ${FRONTEND_URL}
+                depends_on:
+                  clarity-db:
+                    condition: service_healthy
+                networks:
+                  - clarity-network
+
+            networks:
+              clarity-network:
+                driver: bridge
+
+            volumes:
+              postgres_data:
+            COMPOSE
+
+            # Login and pull new image
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-            docker pull "$IMAGE"
+            docker pull ghcr.io/companon/clarity-walk-core:latest
 
-            # Ensure the DB network exists (created by docker compose for the DB)
-            docker network create clarity-walk_clarity-network 2>/dev/null || true
-
-            # Remove stale container if it exists
+            # Remove any stale app container not managed by compose
             docker rm -f clarity-walk-core 2>/dev/null || true
 
-            docker run -d \
-              --name clarity-walk-core \
-              --restart unless-stopped \
-              --network clarity-walk_clarity-network \
-              -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL="jdbc:postgresql://clarity-walk-db:5432/${DB_NAME:-claritywalk}" \
-              -e SPRING_DATASOURCE_USERNAME="$DB_USER" \
-              -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
-              -e EMAIL_SMTP_HOST="$EMAIL_SMTP_HOST" \
-              -e EMAIL_SMTP_PORT="$EMAIL_SMTP_PORT" \
-              -e EMAIL_SMTP_USERNAME="$EMAIL_SMTP_USERNAME" \
-              -e EMAIL_SMTP_PASSWORD="$EMAIL_SMTP_PASSWORD" \
-              -e EMAIL_FROM="$EMAIL_FROM" \
-              -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
-              -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
-              -e FACEBOOK_CLIENT_ID="$FACEBOOK_CLIENT_ID" \
-              -e FACEBOOK_CLIENT_SECRET="$FACEBOOK_CLIENT_SECRET" \
-              -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-              -e JWT_SECRET="$JWT_SECRET" \
-              -e FRONTEND_URL="$FRONTEND_URL" \
-              "$IMAGE"
+            # Start / update all services (DB stays running, app restarts with new image)
+            docker compose up -d --remove-orphans
 
             docker logout ghcr.io >/dev/null 2>&1 || true
