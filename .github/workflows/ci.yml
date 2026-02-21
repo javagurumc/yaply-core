@@ -166,6 +166,8 @@ jobs:
           script: |
             set -euo pipefail
 
+            IMAGE="ghcr.io/companon/clarity-walk-core:latest"
+
             APP_DIR="$HOME/clarity-walk"
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
@@ -193,13 +195,8 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             docker compose pull clarity-app
 
-            # Remove stale container if it exists but isn't managed by compose
+            # Remove stale container if it exists
             docker rm -f clarity-walk-core 2>/dev/null || true
-
-            if docker ps -a --format '{{.Names}}' | grep -qx 'clarity-walk-core'; then
-              echo "Removing existing container clarity-walk-core"
-              docker rm -f clarity-walk-core
-            fi
 
             docker run -d \
               --name clarity-walk-core \
