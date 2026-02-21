@@ -131,7 +131,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Deploy to OCI VM (Docker)
+      - name: Deploy to OCI VM (Docker Compose)
         uses: appleboy/ssh-action@v1.2.0
         env:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
@@ -146,6 +146,11 @@ jobs:
           FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
           FACEBOOK_CLIENT_SECRET: ${{ secrets.FACEBOOK_CLIENT_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         with:
           host: ${{ secrets.OCI_HOST }}
           username: ${{ secrets.OCI_USER }}
@@ -156,36 +161,47 @@ jobs:
             EMAIL_SMTP_HOST,EMAIL_SMTP_PORT,EMAIL_SMTP_USERNAME,EMAIL_SMTP_PASSWORD,EMAIL_FROM,
             GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,
             FACEBOOK_CLIENT_ID,FACEBOOK_CLIENT_SECRET,
-            OPENAI_API_KEY
+            OPENAI_API_KEY,JWT_SECRET,FRONTEND_URL,
+            DB_NAME,DB_USER,DB_PASSWORD
           script: |
             set -euo pipefail
 
-            IMAGE="ghcr.io/${{ github.repository }}:latest"
+            APP_DIR="$HOME/clarity-walk"
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
 
+            # Write env file (overwrite each deploy)
+            cat > .env <<EOF
+            EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+            EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
+            EMAIL_SMTP_USERNAME=${EMAIL_SMTP_USERNAME}
+            EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD}
+            EMAIL_FROM=${EMAIL_FROM}
+            GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+            GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+            FACEBOOK_CLIENT_ID=${FACEBOOK_CLIENT_ID}
+            FACEBOOK_CLIENT_SECRET=${FACEBOOK_CLIENT_SECRET}
+            OPENAI_API_KEY=${OPENAI_API_KEY}
+            JWT_SECRET=${JWT_SECRET}
+            FRONTEND_URL=${FRONTEND_URL}
+            DB_NAME=${DB_NAME}
+            DB_USER=${DB_USER}
+            DB_PASSWORD=${DB_PASSWORD}
+            EOF
+            chmod 600 .env
+
+            # Pull latest docker-compose.yaml from the repo
+            curl -fsSL \
+              -H "Authorization: token ${GHCR_TOKEN}" \
+              -H "Accept: application/vnd.github.raw" \
+              "https://api.github.com/repos/companon/clarity-walk-core/contents/docker-compose.yaml?ref=master" \
+              -o docker-compose.yaml
+
+            # Login and pull new image
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+            docker compose pull clarity-app
 
-            echo "Pulling $IMAGE"
-            docker pull "$IMAGE"
-
-            if docker ps -a --format '{{.Names}}' | grep -qx 'clarity-walk-core'; then
-              echo "Removing existing container clarity-walk-core"
-              docker rm -f clarity-walk-core
-            fi
-
-            docker run -d \
-              --name clarity-walk-core \
-              --restart unless-stopped \
-              -p 8080:8080 \
-              -e EMAIL_SMTP_HOST="$EMAIL_SMTP_HOST" \
-              -e EMAIL_SMTP_PORT="$EMAIL_SMTP_PORT" \
-              -e EMAIL_SMTP_USERNAME="$EMAIL_SMTP_USERNAME" \
-              -e EMAIL_SMTP_PASSWORD="$EMAIL_SMTP_PASSWORD" \
-              -e EMAIL_FROM="$EMAIL_FROM" \
-              -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
-              -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
-              -e FACEBOOK_CLIENT_ID="$FACEBOOK_CLIENT_ID" \
-              -e FACEBOOK_CLIENT_SECRET="$FACEBOOK_CLIENT_SECRET" \
-              -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-              "$IMAGE"
+            # Restart only the app (leave DB running)
+            docker compose up -d --no-deps clarity-app
 
             docker logout ghcr.io >/dev/null 2>&1 || true
