@@ -193,7 +193,10 @@ jobs:
             chmod 600 .env
 
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-            docker compose pull clarity-app
+            docker pull "$IMAGE"
+
+            # Ensure the DB network exists (created by docker compose for the DB)
+            docker network create clarity-walk_clarity-network 2>/dev/null || true
 
             # Remove stale container if it exists
             docker rm -f clarity-walk-core 2>/dev/null || true
@@ -201,7 +204,11 @@ jobs:
             docker run -d \
               --name clarity-walk-core \
               --restart unless-stopped \
+              --network clarity-walk_clarity-network \
               -p 8080:8080 \
+              -e SPRING_DATASOURCE_URL="jdbc:postgresql://clarity-walk-db:5432/${DB_NAME:-claritywalk}" \
+              -e SPRING_DATASOURCE_USERNAME="$DB_USER" \
+              -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
               -e EMAIL_SMTP_HOST="$EMAIL_SMTP_HOST" \
               -e EMAIL_SMTP_PORT="$EMAIL_SMTP_PORT" \
               -e EMAIL_SMTP_USERNAME="$EMAIL_SMTP_USERNAME" \
@@ -212,6 +219,8 @@ jobs:
               -e FACEBOOK_CLIENT_ID="$FACEBOOK_CLIENT_ID" \
               -e FACEBOOK_CLIENT_SECRET="$FACEBOOK_CLIENT_SECRET" \
               -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+              -e JWT_SECRET="$JWT_SECRET" \
+              -e FRONTEND_URL="$FRONTEND_URL" \
               "$IMAGE"
 
             docker logout ghcr.io >/dev/null 2>&1 || true
