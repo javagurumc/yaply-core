@@ -190,18 +190,31 @@ jobs:
             EOF
             chmod 600 .env
 
-            # Pull latest docker-compose.yaml from the repo
-            curl -fsSL \
-              -H "Authorization: token ${GHCR_TOKEN}" \
-              -H "Accept: application/vnd.github.raw" \
-              "https://api.github.com/repos/companon/clarity-walk-core/contents/docker-compose.yaml?ref=master" \
-              -o docker-compose.yaml
-
-            # Login and pull new image
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             docker compose pull clarity-app
 
-            # Restart only the app (leave DB running)
-            docker compose up -d --no-deps clarity-app
+            # Remove stale container if it exists but isn't managed by compose
+            docker rm -f clarity-walk-core 2>/dev/null || true
+
+            if docker ps -a --format '{{.Names}}' | grep -qx 'clarity-walk-core'; then
+              echo "Removing existing container clarity-walk-core"
+              docker rm -f clarity-walk-core
+            fi
+
+            docker run -d \
+              --name clarity-walk-core \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e EMAIL_SMTP_HOST="$EMAIL_SMTP_HOST" \
+              -e EMAIL_SMTP_PORT="$EMAIL_SMTP_PORT" \
+              -e EMAIL_SMTP_USERNAME="$EMAIL_SMTP_USERNAME" \
+              -e EMAIL_SMTP_PASSWORD="$EMAIL_SMTP_PASSWORD" \
+              -e EMAIL_FROM="$EMAIL_FROM" \
+              -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+              -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+              -e FACEBOOK_CLIENT_ID="$FACEBOOK_CLIENT_ID" \
+              -e FACEBOOK_CLIENT_SECRET="$FACEBOOK_CLIENT_SECRET" \
+              -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+              "$IMAGE"
 
             docker logout ghcr.io >/dev/null 2>&1 || true
