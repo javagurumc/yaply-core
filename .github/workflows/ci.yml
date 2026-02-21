@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ]
   workflow_dispatch:
 
 concurrency:
@@ -30,10 +30,10 @@ jobs:
           cache: maven
 
       - name: Maven version
-        run: mvn -v
+        run: ./mvnw -v
 
       - name: Unit tests
-        run: mvn -B -ntp test
+        run: ./mvnw -B -ntp test
 
       - name: Upload surefire reports
         if: always()
@@ -67,7 +67,7 @@ jobs:
       - name: Integration tests (Failsafe)
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
-        run: mvn -B -ntp -DskipTests=false -DskipITs=false verify
+        run: ./mvnw -B -ntp -DskipTests=false -DskipITs=false verify
 
       - name: Upload test reports
         if: always()
@@ -78,3 +78,130 @@ jobs:
             **/target/surefire-reports/**
             **/target/failsafe-reports/**
           if-no-files-found: ignore
+
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: it
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=long
+            type=raw,value=latest,enable=${{ github.ref_name == 'master' || github.ref_name == 'main' }}
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build-and-push
+    if: github.event_name == 'push' && (github.ref_name == 'master' || github.ref_name == 'main')
+    environment: production
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Deploy to OCI VM (Docker Compose)
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
+          EMAIL_SMTP_USERNAME: ${{ secrets.EMAIL_SMTP_USERNAME }}
+          EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
+          FACEBOOK_CLIENT_SECRET: ${{ secrets.FACEBOOK_CLIENT_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          port: ${{ secrets.OCI_SSH_PORT || 22 }}
+          envs: >-
+            GHCR_USERNAME,GHCR_TOKEN,
+            EMAIL_SMTP_HOST,EMAIL_SMTP_PORT,EMAIL_SMTP_USERNAME,EMAIL_SMTP_PASSWORD,EMAIL_FROM,
+            GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,
+            FACEBOOK_CLIENT_ID,FACEBOOK_CLIENT_SECRET,
+            OPENAI_API_KEY,JWT_SECRET,FRONTEND_URL,
+            DB_NAME,DB_USER,DB_PASSWORD
+          script: |
+            set -euo pipefail
+
+            APP_DIR="$HOME/clarity-walk"
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
+
+            # Write env file (overwrite each deploy)
+            cat > .env <<EOF
+            EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+            EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
+            EMAIL_SMTP_USERNAME=${EMAIL_SMTP_USERNAME}
+            EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD}
+            EMAIL_FROM=${EMAIL_FROM}
+            GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+            GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+            FACEBOOK_CLIENT_ID=${FACEBOOK_CLIENT_ID}
+            FACEBOOK_CLIENT_SECRET=${FACEBOOK_CLIENT_SECRET}
+            OPENAI_API_KEY=${OPENAI_API_KEY}
+            JWT_SECRET=${JWT_SECRET}
+            FRONTEND_URL=${FRONTEND_URL}
+            DB_NAME=${DB_NAME}
+            DB_USER=${DB_USER}
+            DB_PASSWORD=${DB_PASSWORD}
+            EOF
+            chmod 600 .env
+
+            # Pull latest docker-compose.yaml from the repo
+            curl -fsSL \
+              -H "Authorization: token ${GHCR_TOKEN}" \
+              -H "Accept: application/vnd.github.raw" \
+              "https://api.github.com/repos/companon/clarity-walk-core/contents/docker-compose.yaml?ref=master" \
+              -o docker-compose.yaml
+
+            # Login and pull new image
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+            docker compose pull clarity-app
+
+            # Restart only the app (leave DB running)
+            docker compose up -d --no-deps clarity-app
+
+            docker logout ghcr.io >/dev/null 2>&1 || true
