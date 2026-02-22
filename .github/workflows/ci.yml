@@ -255,6 +255,7 @@ jobs:
             docker rm -f clarity-walk-core 2>/dev/null || true
 
             # Start / update all services (DB stays running, app restarts with new image)
-            docker compose up -d --remove-orphans
+            docker compose up -d --wait clarity-db
+            docker compose up -d clarity-app
 
             docker logout ghcr.io >/dev/null 2>&1 || true
