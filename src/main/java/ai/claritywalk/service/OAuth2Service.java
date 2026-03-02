@@ -41,7 +41,7 @@ public class OAuth2Service {
     @Value("${claritywalk.oauth2.google.client-secret:}")
     private String googleClientSecret;
 
-    @Value("${claritywalk.oauth2.google.redirect-uri:http://localhost:8080/api/auth/oauth2/callback/google}")
+    @Value("${claritywalk.oauth2.google.redirect-uri:http://localhost:8080/auth/oauth2/callback/google}")
     private String googleRedirectUri;
 
     @Value("${claritywalk.oauth2.facebook.client-id:}")
@@ -50,7 +50,7 @@ public class OAuth2Service {
     @Value("${claritywalk.oauth2.facebook.client-secret:}")
     private String facebookClientSecret;
 
-    @Value("${claritywalk.oauth2.facebook.redirect-uri:http://localhost:8080/api/auth/oauth2/callback/facebook}")
+    @Value("${claritywalk.oauth2.facebook.redirect-uri:http://localhost:8080/auth/oauth2/callback/facebook}")
     private String facebookRedirectUri;
 
     private static final String GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
