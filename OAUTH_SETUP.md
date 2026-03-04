@@ -11,13 +11,22 @@ JWT_SECRET=your-256-bit-secret-key-change-this-in-production
 # Google OAuth
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REDIRECT_URI=http://localhost:8080/auth/oauth2/callback/google
+GOOGLE_REDIRECT_URI=http://localhost:8080/api/auth/oauth2/callback/google
 
 # Facebook OAuth
 FACEBOOK_CLIENT_ID=your_facebook_app_id
 FACEBOOK_CLIENT_SECRET=your_facebook_app_secret
-FACEBOOK_REDIRECT_URI=http://localhost:8080/auth/oauth2/callback/facebook
+FACEBOOK_REDIRECT_URI=http://localhost:8080/api/auth/oauth2/callback/facebook
 ```
+
+Notes:
+- The backend callback endpoints are:
+  - `GET /api/auth/oauth2/callback/google`
+  - `GET /api/auth/oauth2/callback/facebook`
+- In production, Google typically requires **HTTPS** for non-localhost redirect URIs. Use:
+  - `https://<your-domain>/api/auth/oauth2/callback/google`
+  - `https://<your-domain>/api/auth/oauth2/callback/facebook`
+- If you serve your frontend from the same domain (nginx), you must proxy `/api/*` to the backend (see below).
 
 ## Frontend Configuration
 
@@ -38,7 +47,7 @@ VITE_FACEBOOK_CLIENT_ID=your_facebook_app_id
 4. Click **Create Credentials** > **OAuth 2.0 Client ID**
 5. Configure consent screen if prompted
 6. Select **Web application** as application type
-7. Add authorized redirect URI: `http://localhost:8080/auth/oauth2/callback/google`
+7. Add authorized redirect URI: `http://localhost:8080/api/auth/oauth2/callback/google`
 8. Copy **Client ID** and **Client Secret**
 
 ### Facebook OAuth Setup
@@ -49,8 +58,29 @@ VITE_FACEBOOK_CLIENT_ID=your_facebook_app_id
 4. Navigate to **Settings** > **Basic**
 5. Copy **App ID** and **App Secret**
 6. Navigate to **Facebook Login** > **Settings**
-7. Add OAuth redirect URI: `http://localhost:8080/auth/oauth2/callback/google`
+7. Add OAuth redirect URI: `http://localhost:8080/api/auth/oauth2/callback/facebook`
 8. Enable the app for public use when ready
+
+## Reverse Proxy (nginx) For Production
+
+If your public domain points at a static frontend container (nginx), you must proxy `/api/*` to the backend service.
+Otherwise, the OAuth callback URL (e.g. `/api/auth/oauth2/callback/google`) will be handled by the frontend and you
+will typically see the app "stuck" on the callback URL.
+
+Example nginx snippet:
+
+```nginx
+location /api/ {
+    proxy_pass http://clarity-walk-core:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+
+location / {
+    try_files $uri /index.html;
+}
+```
 
 ## Running the Application
 
