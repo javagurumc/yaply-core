@@ -22,6 +22,8 @@ import static org.mockito.Mockito.when;
 @ClarityWebMvcTest(ToolController.class)
 class ToolControllerTest {
 
+    //Test
+
     @Autowired
     private RestTestClient restTestClient;
 
