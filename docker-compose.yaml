@@ -1,8 +1,10 @@
 services:
-  clarity-db:
+  core-db:
     image: pgvector/pgvector:pg16
-    container_name: clarity-walk-db
+    container_name: core-db
     restart: unless-stopped
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -10,28 +12,28 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - clarity-network
+      - yaply-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U clarity -d claritywalk" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  clarity-app:
-    image: ${APP_IMAGE:-ghcr.io/companon/clarity-walk-core:latest}
-    container_name: clarity-walk-core
+  app:
+    image: ${APP_IMAGE:-ghcr.io/companon/yaply-core:latest}
+    container_name: yaply-core
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://clarity-walk-db:5432/${DB_NAME:-claritywalk}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://core-db:5432/${DB_NAME:-claritywalk}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-clarity}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-clarity}
       EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-smtp.gmail.com}
       EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
       EMAIL_SMTP_USERNAME: ${EMAIL_SMTP_USERNAME:-}
       EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
-      EMAIL_FROM: ${EMAIL_FROM:-noreply@claritywalk.ai}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@yaply.ai}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
@@ -42,13 +44,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     depends_on:
-      clarity-db:
+      core-db:
         condition: service_healthy
     networks:
-      - clarity-network
+      - yaply-network
 
 networks:
-  clarity-network:
+  yaply-network:
     driver: bridge
 
 volumes:

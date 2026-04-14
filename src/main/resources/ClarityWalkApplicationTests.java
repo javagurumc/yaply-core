@@ -1,4 +1,4 @@
-package ai.claritywalk;
+package ai.yaply;
 
 import org.junit.jupiter.api.Test;
 

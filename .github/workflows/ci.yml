@@ -167,7 +167,7 @@ jobs:
           script: |
             set -euo pipefail
 
-            APP_DIR="$HOME/clarity-walk"
+            APP_DIR="$HOME/yaply"
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
 
@@ -195,9 +195,9 @@ jobs:
             # Write docker-compose.yaml inline (single-quoted heredoc = no shell expansion)
             cat > docker-compose.yaml <<'COMPOSE'
             services:
-              clarity-db:
+              core-db:
                 image: pgvector/pgvector:pg16
-                container_name: clarity-walk-db
+                container_name: yaply-db
                 restart: unless-stopped
                 environment:
                   POSTGRES_DB: ${DB_NAME:-claritywalk}
@@ -206,21 +206,21 @@ jobs:
                 volumes:
                   - postgres_data:/var/lib/postgresql/data
                 networks:
-                  - clarity-network
+                  - yaply-network
                 healthcheck:
                   test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-clarity} -d ${DB_NAME:-claritywalk}"]
                   interval: 10s
                   timeout: 5s
                   retries: 10
 
-              clarity-app:
-                image: ghcr.io/companon/clarity-walk-core:latest
-                container_name: clarity-walk-core
+              app:
+                image: ghcr.io/companon/yaply-core:latest
+                container_name: yaply-core
                 restart: unless-stopped
                 ports:
                   - "8080:8080"
                 environment:
-                  SPRING_DATASOURCE_URL: jdbc:postgresql://clarity-walk-db:5432/${DB_NAME:-claritywalk}
+                  SPRING_DATASOURCE_URL: jdbc:postgresql://yaply-db:5432/${DB_NAME:-claritywalk}
                   SPRING_DATASOURCE_USERNAME: ${DB_USER:-clarity}
                   SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-clarity}
                   EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST}
@@ -237,13 +237,13 @@ jobs:
                   JWT_SECRET: ${JWT_SECRET}
                   FRONTEND_URL: ${FRONTEND_URL}
                 depends_on:
-                  clarity-db:
+                  core-db:
                     condition: service_healthy
                 networks:
-                  - clarity-network
+                  - yaply-network
 
             networks:
-              clarity-network:
+              yaply-network:
                 driver: bridge
 
             volumes:
@@ -252,13 +252,13 @@ jobs:
 
             # Login and pull new image
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-            docker pull ghcr.io/companon/clarity-walk-core:latest
+            docker pull ghcr.io/companon/yaply-core:latest
 
             # Remove any stale app container not managed by compose
-            docker rm -f clarity-walk-core 2>/dev/null || true
+            docker rm -f yaply-core 2>/dev/null || true
 
             # Start / update all services (DB stays running, app restarts with new image)
-            docker compose up -d --wait clarity-db
-            docker compose up -d clarity-app
+            docker compose up -d --wait core-db
+            docker compose up -d app
 
             docker logout ghcr.io >/dev/null 2>&1 || true

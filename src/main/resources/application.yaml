@@ -2,12 +2,14 @@ server:
     port: 8080
 
 spring:
+    config:
+        import: optional:file:.env[.properties]
     application:
-        name: clarity-walk-core
+        name: yaply-core
     datasource:
-        url: jdbc:postgresql://localhost:5433/claritywalk
-        username: clarity
-        password: clarity
+        url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME}}
+        username: ${SPRING_DATASOURCE_USERNAME:${DB_USER}}
+        password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD}}
     flyway:
         enabled: true
 
@@ -61,7 +63,7 @@ claritywalk:
             redirect-uri: ${FACEBOOK_REDIRECT_URI:}
     email:
         enabled: ${EMAIL_ENABLED:true}
-        from: ${EMAIL_FROM:noreply@claritywalk.ai}
+        from: ${EMAIL_FROM:noreply@yaply.ai}
     
     # Knowledge Base (RAG) Configuration
     kb:

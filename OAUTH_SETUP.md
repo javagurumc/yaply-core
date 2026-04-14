@@ -30,7 +30,7 @@ Notes:
 
 ## Frontend Configuration
 
-2. **Create `.env` file** in `clarity-walk-web/clarity-walk-web/`:
+2. **Create `.env` file** in `yaply-web/yaply-web/`:
 
 ```bash
 VITE_GOOGLE_CLIENT_ID=your_google_client_id
@@ -71,7 +71,7 @@ Example nginx snippet:
 
 ```nginx
 location /api/ {
-    proxy_pass http://clarity-walk-core:8080;
+    proxy_pass http://yaply-core:8080;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -91,13 +91,13 @@ location / {
 
 2. **Start backend**:
    ```bash
-   cd clarity-walk-core
+   cd yaply-core
    ./mvnw spring-boot:run
    ```
 
 3. **Start frontend**:
    ```bash
-   cd clarity-walk-web/clarity-walk-web
+   cd yaply-web/yaply-web
    npm run dev
    ```
 
@@ -109,7 +109,7 @@ location / {
 2. Complete OAuth authorization in the provider's popup/redirect
 3. You will be redirected back to the app with a JWT token
 4. The token is stored in localStorage
-5. You should now see the main Clarity Walk app interface
+5. You should now see the main Yaply app interface
 
 ## Troubleshooting
 

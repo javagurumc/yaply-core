@@ -1,5 +1,5 @@
 -- V1__init.sql
--- Core tables for Clarity Walk
+-- Core tables for Yaply
 
 CREATE TABLE IF NOT EXISTS conversation
 (

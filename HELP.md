@@ -1,7 +1,7 @@
 # Read Me First
 The following was discovered as part of building this project:
 
-* The original package name 'eu.companon.clarity-walk-core' is invalid and this project uses 'eu.companon.core' instead.
+* The original package name 'eu.companon.yaply-core' is invalid and this project uses 'eu.companon.core' instead.
 
 # Getting Started
 
