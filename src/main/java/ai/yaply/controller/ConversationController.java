@@ -8,7 +8,6 @@ import ai.yaply.service.ConversationService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -23,13 +22,7 @@ public class ConversationController {
 
     @PostMapping
     public CreateConversationResponse create(Authentication auth) {
-        //Todo move this check to the service
-        String email = ((UserDetails) auth.getPrincipal()).getUsername();
-        String userId = profileRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"))
-                .getUserId();
-
-        UUID id = conversationService.createConversation(userId);
+        UUID id = conversationService.createConversation(resolveUserId(auth));
         return new CreateConversationResponse(id);
     }
 
@@ -42,18 +35,21 @@ public class ConversationController {
 
     @PostMapping("/{id}/end")
     public EndConversationResponse end(@PathVariable("id") UUID id, Authentication auth) {
-        // in prod: verify auth user owns conversation
-        //Todo move this check to the service
-        String email = ((UserDetails) auth.getPrincipal()).getUsername();
-        String userId = profileRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"))
-                .getUserId();
-        var summary = conversationService.endAndSummarize(id, userId);
+        var summary = conversationService.endAndSummarize(id, resolveUserId(auth));
         return new EndConversationResponse(id, summary);
     }
 
     @GetMapping("/{id}")
     public Object get(@PathVariable("id") UUID id) {
         return conversationService.getConversationView(id);
+    }
+
+    private String resolveUserId(Authentication auth) {
+        if (auth == null || !auth.isAuthenticated()) {
+            return null;
+        }
+        return profileRepository.findByEmail(auth.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"))
+                .getUserId();
     }
 }

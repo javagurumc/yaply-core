@@ -7,7 +7,6 @@ import ai.yaply.service.OpenAIRealtimeService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,10 +23,12 @@ public class RealtimeSessionController {
     @PostMapping("/session")
     public CreateRealtimeSessionResponse createSession(@RequestBody @Valid CreateRealtimeSessionRequest req,
                                                        Authentication auth) {
-        String email = ((UserDetails) auth.getPrincipal()).getUsername();
-        String userId = profileRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"))
-                .getUserId();
+        String userId = null;
+        if (auth != null && auth.isAuthenticated()) {
+            userId = profileRepository.findByEmail(auth.getName())
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"))
+                    .getUserId();
+        }
         return realtimeService.createEphemeralSession(req, userId);
     }
 }

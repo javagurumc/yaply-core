@@ -64,14 +64,23 @@ class ConversationControllerTest {
     }
 
     @Test
-    void givenNoAuthentication_whenCreateConversation_thenForbidden() {
+    void givenNoAuthentication_whenCreateConversation_thenReturnsConversationId() {
+        // given
+        var conversationId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        when(conversationService.createConversation(null)).thenReturn(conversationId);
+
         // when
         var response = restTestClient.post()
                 .uri("/api/conversations")
                 .exchange();
 
         // then
-        response.expectStatus().isForbidden();
+        response
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.conversationId").isEqualTo("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+        verify(conversationService).createConversation(null);
     }
 
     @Test
@@ -130,7 +139,7 @@ class ConversationControllerTest {
     }
 
     @Test
-    void givenNoAuthentication_whenIngestEvents_thenForbidden() {
+    void givenNoAuthentication_whenIngestEvents_thenOk() {
         // given
         var conversationId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
@@ -147,7 +156,7 @@ class ConversationControllerTest {
                 .exchange();
 
         // then
-        response.expectStatus().isForbidden();
+        response.expectStatus().isOk();
     }
 
     @Test
@@ -207,9 +216,11 @@ class ConversationControllerTest {
     }
 
     @Test
-    void givenNoAuthentication_whenEndConversation_thenForbidden() {
+    void givenNoAuthentication_whenEndConversation_thenReturnsSummary() {
         // given
         var conversationId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var summary = Map.<String, Object>of("summary", "done");
+        when(conversationService.endAndSummarize(conversationId, null)).thenReturn(summary);
 
         // when
         var response = restTestClient.post()
@@ -217,7 +228,11 @@ class ConversationControllerTest {
                 .exchange();
 
         // then
-        response.expectStatus().isForbidden();
+        response.expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.summary.summary").isEqualTo("done");
+
+        verify(conversationService).endAndSummarize(conversationId, null);
     }
 
     @Test
@@ -264,9 +279,13 @@ class ConversationControllerTest {
     }
 
     @Test
-    void givenNoAuthentication_whenGetConversation_thenForbidden() {
+    void givenNoAuthentication_whenGetConversation_thenReturnsView() {
         // given
         var conversationId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        when(conversationService.getConversationView(conversationId)).thenReturn(Map.of(
+                "conversationId", conversationId,
+                "status", "STARTED"
+        ));
 
         // when
         var response = restTestClient.get()
@@ -274,7 +293,9 @@ class ConversationControllerTest {
                 .exchange();
 
         // then
-        response.expectStatus().isForbidden();
+        response.expectStatus().isOk();
+
+        verify(conversationService).getConversationView(conversationId);
     }
 
     @Test

@@ -1,8 +1,6 @@
 package ai.yaply.config;
 
 import ai.yaply.security.CustomUserDetailsService;
-import ai.yaply.security.JwtAuthenticationFilter;
-import ai.yaply.security.JwtUtil;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,11 +53,6 @@ class SecurityCorsPreflightTest {
     @EnableWebSecurity
     @Import(SecurityConfig.class)
     static class TestApp {
-
-        @Bean
-        JwtAuthenticationFilter jwtAuthenticationFilter() {
-            return new JwtAuthenticationFilter(Mockito.mock(JwtUtil.class), Mockito.mock(CustomUserDetailsService.class));
-        }
 
         @Bean
         UserDetailsService userDetailsService() {

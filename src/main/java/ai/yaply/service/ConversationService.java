@@ -21,6 +21,8 @@ import java.util.*;
 @AllArgsConstructor
 @Service
 public class ConversationService {
+    private static final String ANONYMOUS_USER_ID = "anonymous";
+
 
     private final ConversationRepository conversationRepo;
     private final ConversationEventRepository eventRepo;
@@ -33,15 +35,17 @@ public class ConversationService {
     @Transactional
     public UUID createConversation(String userId) {
         UUID id = UUID.randomUUID();
+        String resolvedUserId = userId == null || userId.isBlank() ? ANONYMOUS_USER_ID : userId;
 
-        // Fetch user profile and generate customized prompt
-        Profile profile = profileRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Profile not found for user: " + userId));
+        Map<String, String> responsesMap = Map.of();
+        if (!ANONYMOUS_USER_ID.equals(resolvedUserId)) {
+            Profile profile = profileRepository.findByUserId(resolvedUserId)
+                    .orElseThrow(() -> new IllegalArgumentException("Profile not found for user: " + resolvedUserId));
 
-        // Parse profile responses from JSON
-        Map<String, String> responsesMap = objectMapper.readValue(
-                profile.getResponses(),
-                objectMapper.getTypeFactory().constructMapType(Map.class, String.class, String.class));
+            responsesMap = objectMapper.readValue(
+                    profile.getResponses(),
+                    objectMapper.getTypeFactory().constructMapType(Map.class, String.class, String.class));
+        }
 
         // Generate customized system prompt
         String systemPrompt = promptService.generateSystemPrompt(responsesMap);
@@ -51,8 +55,8 @@ public class ConversationService {
         sessionConfig.put("systemPrompt", systemPrompt);
         String sessionConfigJson = objectMapper.writeValueAsString(sessionConfig);
 
-        conversationRepo.save(Conversation.started(id, userId, sessionConfigJson));
-        log.info("Created conversation {} with customized prompt for user {}", id, userId);
+        conversationRepo.save(Conversation.started(id, resolvedUserId, sessionConfigJson));
+        log.info("Created conversation {} with customized prompt for user {}", id, resolvedUserId);
 
         return id;
     }
@@ -61,7 +65,7 @@ public class ConversationService {
         Conversation convo = conversationRepo.findById(conversationId)
                 .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
 
-        if (!Objects.equals(convo.getUserId(), userId)) {
+        if (userId != null && !userId.isBlank() && !Objects.equals(convo.getUserId(), userId)) {
             throw new IllegalArgumentException("Conversation does not belong to user");
         }
 
@@ -109,7 +113,9 @@ public class ConversationService {
         conversationRepo.save(convo);
 
         // Persist user memory to KB
-        persistUserMemory(userId, summary, conversationId);
+        if (userId != null && !userId.isBlank() && !ANONYMOUS_USER_ID.equals(userId)) {
+            persistUserMemory(userId, summary, conversationId);
+        }
 
         return summary;
     }
