@@ -3,7 +3,9 @@ package ai.yaply.service;
 import ai.yaply.dto.KbSearchResult;
 import ai.yaply.dto.ToolExecuteRequest;
 import ai.yaply.dto.ToolExecuteResponse;
+import ai.yaply.entity.Conversation;
 import ai.yaply.entity.KbScope;
+import ai.yaply.repo.ConversationRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ public class ToolExecutionService {
     private final ExternalApiFacade externalApi;
     private final KbSearchService kbSearchService;
     private final KbIngestService kbIngestService;
+    private final ConversationRepository conversationRepository;
     private final ObjectMapper objectMapper;
 
     public ToolExecuteResponse execute(ToolExecuteRequest req) {
@@ -41,7 +44,7 @@ public class ToolExecutionService {
             String scopeStr = (String) args.get("scope");
             Integer topK = args.containsKey("top_k") ? ((Number) args.get("top_k")).intValue() : null;
             String source = (String) args.get("source");
-            String userId = (String) args.get("userId"); // Passed from conversation context
+            String userId = resolveUserIdForToolRequest(req);
 
             KbScope scope = KbScope.valueOf(scopeStr);
 
@@ -70,7 +73,7 @@ public class ToolExecutionService {
             String title = (String) args.get("title");
             String content = (String) args.get("content");
             List<String> tags = args.containsKey("tags") ? (List<String>) args.get("tags") : List.of();
-            String userId = (String) args.get("userId"); // Passed from conversation context
+            String userId = resolveUserIdForToolRequest(req);
 
             // Ingest as USER scope document
             kbIngestService.ingestDocument(
@@ -89,6 +92,16 @@ public class ToolExecutionService {
             return new ToolExecuteResponse(req.toolName(),
                     Map.of("success", false, "error", e.getMessage()));
         }
+    }
+
+    private String resolveUserIdForToolRequest(ToolExecuteRequest req) {
+        Conversation conversation = conversationRepository.findById(req.conversationId())
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+        String userId = conversation.getUserId();
+        if (userId == null || userId.isBlank() || "anonymous".equals(userId)) {
+            return null;
+        }
+        return userId;
     }
 
 }
