@@ -1,6 +1,11 @@
 package ai.yaply.config;
 
+import ai.yaply.security.JwtAuthenticationFilter;
+import ai.yaply.security.CustomUserDetailsService;
+import ai.yaply.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,6 +24,8 @@ import java.util.List;
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final ObjectProvider<JwtAuthenticationFilter> jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) {
@@ -42,6 +49,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        jwtAuthenticationFilter.ifAvailable(filter ->
+                http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class));
+
         return http.build();
     }
 
@@ -53,5 +63,12 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    @ConditionalOnBean({JwtService.class, CustomUserDetailsService.class})
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService,
+                                                           CustomUserDetailsService userDetailsService) {
+        return new JwtAuthenticationFilter(jwtService, userDetailsService);
     }
 }

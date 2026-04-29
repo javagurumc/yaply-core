@@ -17,6 +17,7 @@ import java.lang.annotation.Target;
 @Documented
 @WebMvcTest
 @AutoConfigureRestTestClient
+@Import(SecurityConfig.class)
 public @interface ClarityWebMvcTest {
 
         @AliasFor(annotation = WebMvcTest.class, attribute = "value")

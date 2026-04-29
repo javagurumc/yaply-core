@@ -1,6 +1,11 @@
 server:
     port: 8080
 
+app:
+    jwt:
+        secret: ${JWT_SECRET:dev-only-yaply-jwt-secret-change-before-production-123456}
+        expiration: ${JWT_EXPIRATION_MS:86400000}
+
 spring:
     config:
         import: optional:file:.env[.properties]
