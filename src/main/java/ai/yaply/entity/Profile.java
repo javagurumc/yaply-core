@@ -51,4 +51,9 @@ public class Profile {
     @Column(name = "provider_email")
     private String providerEmail;
 
+    @Setter
+    @Builder.Default
+    @Column(name = "custom_tutor_prompt", columnDefinition = "TEXT")
+    private String customTutorPrompt = "";
+
 }

@@ -22,13 +22,16 @@ import static org.mockito.Mockito.*;
 class ProfileServiceTest {
 
     private ProfileRepository profileRepository;
+    
+    private ValidateTutorPromptService validateTutorPromptService;
 
     private ProfileService profileService;
 
     @BeforeEach
     void setUp() {
         profileRepository = mock(ProfileRepository.class);
-        profileService = new ProfileService(profileRepository, new ObjectMapper());
+        validateTutorPromptService = mock(ValidateTutorPromptService.class);
+        profileService = new ProfileService(profileRepository, new ObjectMapper(), validateTutorPromptService);
     }
 
     @Test

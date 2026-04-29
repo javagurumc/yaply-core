@@ -38,6 +38,8 @@ public class ConversationService {
         String resolvedUserId = userId == null || userId.isBlank() ? ANONYMOUS_USER_ID : userId;
 
         Map<String, String> responsesMap = Map.of();
+        String customTutorPrompt = "";
+        
         if (!ANONYMOUS_USER_ID.equals(resolvedUserId)) {
             Profile profile = profileRepository.findByUserId(resolvedUserId)
                     .orElseThrow(() -> new IllegalArgumentException("Profile not found for user: " + resolvedUserId));
@@ -45,18 +47,26 @@ public class ConversationService {
             responsesMap = objectMapper.readValue(
                     profile.getResponses(),
                     objectMapper.getTypeFactory().constructMapType(Map.class, String.class, String.class));
+            
+            customTutorPrompt = profile.getCustomTutorPrompt() != null ? profile.getCustomTutorPrompt() : "";
         }
 
-        // Generate customized system prompt
-        String systemPrompt = promptService.generateSystemPrompt(responsesMap);
+        // Use custom prompt if available, otherwise generate from questionnaire responses
+        String systemPrompt;
+        if (customTutorPrompt != null && !customTutorPrompt.trim().isEmpty()) {
+            systemPrompt = customTutorPrompt;
+            log.info("Created conversation {} with custom tutor prompt for user {}", id, resolvedUserId);
+        } else {
+            systemPrompt = promptService.generateSystemPrompt(responsesMap);
+            log.info("Created conversation {} with questionnaire-based prompt for user {}", id, resolvedUserId);
+        }
 
-        // Create session config with the customized prompt
+        // Create session config with the selected prompt
         Map<String, String> sessionConfig = new LinkedHashMap<>();
         sessionConfig.put("systemPrompt", systemPrompt);
         String sessionConfigJson = objectMapper.writeValueAsString(sessionConfig);
 
         conversationRepo.save(Conversation.started(id, resolvedUserId, sessionConfigJson));
-        log.info("Created conversation {} with customized prompt for user {}", id, resolvedUserId);
 
         return id;
     }

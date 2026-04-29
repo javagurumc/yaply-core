@@ -1,8 +1,6 @@
 package ai.yaply.service;
 
-import ai.yaply.dto.CreateProfileRequest;
-import ai.yaply.dto.CreateProfileResponse;
-import ai.yaply.dto.ProfileResponse;
+import ai.yaply.dto.*;
 import ai.yaply.entity.Profile;
 import ai.yaply.repo.ProfileRepository;
 import lombok.AllArgsConstructor;
@@ -23,6 +21,7 @@ public class ProfileService {
 
     private final ProfileRepository profileRepository;
     private final ObjectMapper objectMapper;
+    private final ValidateTutorPromptService validateTutorPromptService;
 
     public ProfileResponse getProfile(Authentication auth) {
         var email = getEmail(auth);
@@ -62,6 +61,35 @@ public class ProfileService {
 
     private @NonNull String getEmail(Authentication auth) {
         return ((UserDetails) auth.getPrincipal()).getUsername();
+    }
+
+    public UpdateTutorPromptResponse updateCustomPrompt(UpdateTutorPromptRequest request, Authentication auth) {
+        var email = getEmail(auth);
+        var profile = findProfileByEmail(email);
+
+        // Validate the prompt (empty prompts are allowed for reset)
+        var validationError = validateTutorPromptService.validate(request.prompt());
+        if (validationError.isPresent()) {
+            throw new IllegalArgumentException("Prompt validation failed: " + validationError.get().message());
+        }
+
+        // Update the prompt
+        profile.setCustomTutorPrompt(request.prompt());
+        var updatedProfile = profileRepository.save(profile);
+
+        String message = request.prompt().trim().isEmpty() 
+                ? "Tutor prompt reset to default" 
+                : "Tutor prompt updated successfully";
+
+        log.info("Custom tutor prompt updated for user: {}", email);
+
+        return new UpdateTutorPromptResponse(updatedProfile.getCustomTutorPrompt(), message);
+    }
+
+    public GetTutorPromptResponse getCustomPrompt(Authentication auth) {
+        var email = getEmail(auth);
+        var profile = findProfileByEmail(email);
+        return new GetTutorPromptResponse(profile.getCustomTutorPrompt());
     }
 
 }

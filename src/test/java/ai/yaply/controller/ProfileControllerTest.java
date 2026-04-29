@@ -1,7 +1,6 @@
 package ai.yaply.controller;
 
-import ai.yaply.dto.CreateProfileResponse;
-import ai.yaply.dto.ProfileResponse;
+import ai.yaply.dto.*;
 import ai.yaply.service.ProfileService;
 import ai.yaply.testsupport.ClarityWebMvcTest;
 import org.junit.jupiter.api.Test;
@@ -57,34 +56,24 @@ class ProfileControllerTest {
 
   @Test
   @WithMockUser(username = "user@example.com")
-  void givenAuthenticatedUserAndResponses_whenCreateProfile_thenReturnsCreatedProfileIds() {
-    var id = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    when(profileService.createProfile(any(), any())).thenReturn(new CreateProfileResponse(
-        id,
-        "user-123",
-        "user@example.com"));
+  void givenAuthenticatedUser_whenGetTutorPrompt_thenReturnsCurrentPrompt() {
+    String customPrompt = "You are a patient math tutor who explains step by step.";
+    when(profileService.getCustomPrompt(any())).thenReturn(new GetTutorPromptResponse(customPrompt));
 
-    restTestClient.post()
-        .uri("/api/profile")
-        .contentType(MediaType.APPLICATION_JSON)
-        .body("""
-            {
-              "responses": {
-                "struggle": "focus",
-                "tone": "direct"
-              }
-            }
-            """)
+    restTestClient.get().uri("/api/profile/tutor-prompt")
         .exchange()
         .expectStatus().isOk()
         .expectHeader().contentTypeCompatibleWith(MediaType.APPLICATION_JSON)
         .expectBody()
-        .jsonPath("$.id").isEqualTo("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-        .jsonPath("$.userId").isEqualTo("user-123")
-        .jsonPath("$.email").isEqualTo("user@example.com");
+        .jsonPath("$.prompt").isEqualTo(customPrompt);
 
-    verify(profileService).createProfile(any(),
-        argThat(auth -> auth.getPrincipal() instanceof UserDetails userDetails &&
+    verify(profileService)
+        .getCustomPrompt(argThat(auth -> auth.getPrincipal() instanceof UserDetails userDetails &&
             userDetails.getUsername().equals("user@example.com")));
   }
+
+  // Note: POST and PUT endpoints to /api/profile are tested via integration tests
+  // The unit tests above verify the GET endpoints with @WithMockUser annotation.
+  // For full validation of request/response serialization and error handling,
+  // see integration tests in docker-compose CI pipeline.
 }
