@@ -72,6 +72,26 @@ class ProfileControllerTest {
             userDetails.getUsername().equals("user@example.com")));
   }
 
+  @Test
+  void givenAnonymousUser_whenGetTutorPrompt_thenRequestIsRejected() {
+    restTestClient.get().uri("/api/profile/tutor-prompt")
+        .exchange()
+        .expectStatus().is4xxClientError();
+  }
+
+  @Test
+  void givenAnonymousUser_whenUpdateTutorPrompt_thenRequestIsRejected() {
+    restTestClient.put().uri("/api/profile/tutor-prompt")
+        .contentType(MediaType.APPLICATION_JSON)
+        .body("""
+                {
+                  "prompt": "be concise"
+                }
+                """)
+        .exchange()
+        .expectStatus().is4xxClientError();
+  }
+
   // Note: POST and PUT endpoints to /api/profile are tested via integration tests
   // The unit tests above verify the GET endpoints with @WithMockUser annotation.
   // For full validation of request/response serialization and error handling,

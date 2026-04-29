@@ -1,6 +1,8 @@
 package ai.yaply.service;
 
 import ai.yaply.dto.CreateProfileRequest;
+import ai.yaply.dto.GetTutorPromptResponse;
+import ai.yaply.dto.UpdateTutorPromptRequest;
 import ai.yaply.entity.Profile;
 import ai.yaply.repo.ProfileRepository;
 import org.jspecify.annotations.NonNull;
@@ -115,6 +117,44 @@ class ProfileServiceTest {
         assertThatThrownBy(() -> profileService.createProfile(request, authentication))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Profile not found for user: " + email);
+    }
+
+    @Test
+    void givenAuthenticatedUser_whenUpdateCustomPrompt_thenUpdatesOnlyAuthenticatedProfile() {
+        var email = "user@example.com";
+        var prompt = "You are a patient tutor.";
+        var authentication = mockAuthentication(email);
+        var profile = Profile.builder()
+                .email(email)
+                .responses("{}")
+                .build();
+
+        when(profileRepository.findByEmail(email)).thenReturn(Optional.of(profile));
+        when(validateTutorPromptService.validate(prompt)).thenReturn(Optional.empty());
+        when(profileRepository.save(any(Profile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = profileService.updateCustomPrompt(new UpdateTutorPromptRequest(prompt), authentication);
+
+        assertThat(response.prompt()).isEqualTo(prompt);
+        verify(profileRepository).findByEmail(email);
+    }
+
+    @Test
+    void givenAuthenticatedUser_whenGetCustomPrompt_thenReadsOnlyAuthenticatedProfile() {
+        var email = "user@example.com";
+        var authentication = mockAuthentication(email);
+        var profile = Profile.builder()
+                .email(email)
+                .responses("{}")
+                .customTutorPrompt("Per user prompt")
+                .build();
+
+        when(profileRepository.findByEmail(email)).thenReturn(Optional.of(profile));
+
+        GetTutorPromptResponse response = profileService.getCustomPrompt(authentication);
+
+        assertThat(response.prompt()).isEqualTo("Per user prompt");
+        verify(profileRepository).findByEmail(email);
     }
 
     private @NonNull Authentication mockAuthentication(String email) {
