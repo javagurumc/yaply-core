@@ -20,7 +20,7 @@ class AgentControllerTest {
     @Autowired RestTestClient client;
     @MockitoBean AgentService service;
     private final UUID id = UUID.randomUUID();
-    private AgentResponse response() { return new AgentResponse(id, "Math", "", Instant.now(), Instant.now()); }
+    private AgentResponse response() { return new AgentResponse(id, "Math", "", Instant.now(), Instant.now(), false); }
 
     @Test void anonymousRequestsAreUnauthorized() {
         client.get().uri("/api/agents").exchange().expectStatus().isUnauthorized();
@@ -63,4 +63,26 @@ class AgentControllerTest {
         client.get().uri("/api/agents/" + id).exchange().expectStatus().isNotFound();
         client.put().uri("/api/agents/" + id).contentType(MediaType.APPLICATION_JSON).body(Map.of("name", "Math")).exchange().expectStatus().isNotFound();
     }
+    @Test void anonymousPromptRequestsAreUnauthorized() {
+        client.get().uri("/api/agents/" + id + "/prompt").exchange().expectStatus().isUnauthorized();
+        client.put().uri("/api/agents/" + id + "/prompt").contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("prompt", "Teach biology", "expectedRevision", 0)).exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test @WithMockUser
+    void promptApiValidatesAndReturnsRevisions() {
+        var response = new AgentPromptResponse(id, "Teach biology", 1, true, Instant.now());
+        when(service.getPrompt(eq(id), any())).thenReturn(response);
+        when(service.updatePrompt(eq(id), any(), any())).thenReturn(response);
+        client.get().uri("/api/agents/" + id + "/prompt").exchange().expectStatus().isOk().expectBody().jsonPath("$.revision").isEqualTo(1);
+        client.put().uri("/api/agents/" + id + "/prompt").contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("prompt", "Teach biology", "expectedRevision", 0)).exchange().expectStatus().isOk();
+        for (var body : List.of(Map.of("prompt", "Teach biology"), Map.of("expectedRevision", 0), Map.of("prompt", "Teach", "expectedRevision", -1))) {
+            client.put().uri("/api/agents/" + id + "/prompt").contentType(MediaType.APPLICATION_JSON).body(body).exchange().expectStatus().isBadRequest();
+        }
+        when(service.updatePrompt(eq(id), any(), any())).thenThrow(new org.springframework.orm.ObjectOptimisticLockingFailureException("prompt", id));
+        client.put().uri("/api/agents/" + id + "/prompt").contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("prompt", "Teach biology", "expectedRevision", 0)).exchange().expectStatus().isEqualTo(409);
+    }
+
 }

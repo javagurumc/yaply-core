@@ -15,7 +15,7 @@ import static org.mockito.ArgumentMatchers.any;
 class AgentServiceTest {
     private final ExamAgentRepository agents = mock(ExamAgentRepository.class);
     private final ProfileRepository profiles = mock(ProfileRepository.class);
-    private final AgentService service = new AgentService(agents, profiles);
+    private final AgentService service = new AgentService(agents, profiles, mock(AgentPromptRepository.class), new ValidateTutorPromptService());
     private final UUID owner = UUID.randomUUID();
     private final Authentication auth = new UsernamePasswordAuthenticationToken("teacher@example.com", "", List.of());
 

@@ -15,6 +15,16 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AgentController {
     private final AgentService service;
+    @GetMapping("/{id}/prompt")
+    public AgentPromptResponse getPrompt(@PathVariable UUID id, Authentication auth) {
+        return service.getPrompt(id, auth);
+    }
+
+    @PutMapping("/{id}/prompt")
+    public AgentPromptResponse updatePrompt(@PathVariable UUID id, @Valid @RequestBody UpdateAgentPromptRequest request, Authentication auth) {
+        return service.updatePrompt(id, request, auth);
+    }
+
     @GetMapping public List<AgentResponse> list(Authentication auth) { return service.list(auth); }
     @GetMapping("/{id}") public AgentResponse get(@PathVariable UUID id, Authentication auth) { return service.get(id, auth); }
     @PostMapping public ResponseEntity<AgentResponse> create(@Valid @RequestBody CreateAgentRequest request, Authentication auth) {

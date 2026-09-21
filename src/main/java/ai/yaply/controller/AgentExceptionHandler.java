@@ -8,6 +8,11 @@ import java.util.Map;
 
 @RestControllerAdvice(assignableTypes = AgentController.class)
 public class AgentExceptionHandler {
+    @ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException.class)
+    public ResponseEntity<?> conflict() {
+        return ResponseEntity.status(409).body(Map.of("message", "Instructions changed in another session. Reload the saved instructions before saving again."));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> invalid(MethodArgumentNotValidException ex) {
         var errors = ex.getBindingResult().getFieldErrors().stream()
