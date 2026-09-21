@@ -39,6 +39,10 @@ public class SecurityConfig {
                     return corsConfig;
                 }))
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(errors -> errors.defaultAuthenticationEntryPointFor(
+                        (request, response, exception) -> response.sendError(401),
+                        request -> request.getServletPath().equals("/api/agents")
+                                || request.getServletPath().startsWith("/api/agents/")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
