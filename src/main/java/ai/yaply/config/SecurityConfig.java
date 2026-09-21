@@ -42,7 +42,8 @@ public class SecurityConfig {
                 .exceptionHandling(errors -> errors.defaultAuthenticationEntryPointFor(
                         (request, response, exception) -> response.sendError(401),
                         request -> request.getServletPath().equals("/api/agents")
-                                || request.getServletPath().startsWith("/api/agents/")))
+                                || request.getServletPath().startsWith("/api/agents/")
+                                || request.getServletPath().equals("/api/tutor/api-key")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()

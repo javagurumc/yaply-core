@@ -6,7 +6,6 @@ import ai.yaply.entity.AgentPrompt;
 import ai.yaply.repo.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,15 +17,12 @@ import java.util.*;
 @Transactional(readOnly = true)
 public class AgentService {
     private final ExamAgentRepository agents;
-    private final ProfileRepository profiles;
+    private final CurrentProfileService currentProfile;
     private final AgentPromptRepository prompts;
     private final ValidateTutorPromptService promptValidator;
 
     private UUID owner(Authentication auth) {
-        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken)
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        return profiles.findByEmail(auth.getName()).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED)).getId();
+        return currentProfile.id(auth);
     }
 
     public List<AgentResponse> list(Authentication auth) {
